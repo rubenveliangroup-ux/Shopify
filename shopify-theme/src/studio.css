@@ -1,0 +1,35 @@
+/* Base mínima, solo dentro del estudio */
+#br-studio {
+  --font-display: var(--font-heading--family, Georgia, serif);
+  --font-sans: var(--font-body--family, system-ui, sans-serif);
+  --font-script: 'Pacifico', cursive;
+  --font-bold: 'Anton', sans-serif;
+  font-family: var(--font-sans);
+  color: #171412;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+#br-studio *, #br-studio *::before, #br-studio *::after { box-sizing: border-box; border-width: 0; border-style: solid; border-color: currentColor; }
+#br-studio h1, #br-studio h2, #br-studio h3, #br-studio p, #br-studio ul, #br-studio ol, #br-studio fieldset { margin: 0; padding: 0; border: 0; }
+#br-studio ul, #br-studio ol { list-style: none; }
+#br-studio h1, #br-studio h2, #br-studio h3 { font-family: var(--font-display); font-weight: 500; letter-spacing: -0.01em; line-height: 1.1; color: inherit; }
+#br-studio button { font: inherit; color: inherit; background: transparent; border-width: 0; border-style: solid; border-color: currentColor; padding: 0; margin: 0; cursor: pointer; text-transform: none; letter-spacing: normal; min-height: 0; box-shadow: none; }
+#br-studio button:disabled { cursor: not-allowed; }
+#br-studio input, #br-studio textarea, #br-studio select { font: inherit; color: inherit; margin: 0; }
+#br-studio a { color: inherit; }
+#br-studio canvas { display: block; }
+#br-studio :focus-visible { outline: 2px solid #C2461F; outline-offset: 2px; }
+
+/* Con preflight desactivado, base solo emite las variables --tw-* (anillos, sombras, transformaciones) */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Componentes equivalentes a app/globals.css, limitados al estudio */
+#br-studio .container-page { @apply mx-auto w-full max-w-page px-4 sm:px-6 lg:px-10; }
+#br-studio .eyebrow { @apply text-xs font-semibold uppercase tracking-[0.18em] text-tinta-500; }
+#br-studio .btn { @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold transition duration-200 disabled:cursor-not-allowed disabled:opacity-50; }
+#br-studio .btn-primary { @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold transition duration-200 disabled:cursor-not-allowed disabled:opacity-50 bg-hilo text-white shadow-[0_6px_20px_-8px_rgba(194,70,31,.7)] hover:bg-hilo-600; }
+#br-studio .btn-dark { @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold transition duration-200 bg-tinta text-lino hover:bg-tinta-700; }
+#br-studio .field { @apply w-full rounded-xl border border-solid border-tinta/15 bg-lino-100 px-4 py-3 text-sm placeholder:text-tinta-300 focus:border-tinta focus:outline-none; }
+#br-studio .label { @apply mb-1.5 block text-sm font-medium; }

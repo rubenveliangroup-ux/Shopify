@@ -1,0 +1,14 @@
+{
+  "sections": {
+    "studio": {
+      "type": "br-design-studio",
+      "settings": {
+        "product": "sudadera-personalizada",
+        "alt_link": "shopify://pages/disenos-a-medida",
+        "padding_top": 24,
+        "padding_bottom": 48
+      }
+    }
+  },
+  "order": ["studio"]
+}

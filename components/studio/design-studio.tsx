@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { cn } from '@/lib/utils';
@@ -11,11 +10,40 @@ import { applyEmbroidery } from './embroidery';
 import { Garment3D, type Garment3DHandle } from './garment-3d';
 import { SendDesign } from './send-design';
 
-export function DesignStudio() {
+export type CheckoutProps = {
+  onClose: () => void;
+  getFiles: () => Promise<File[]>;
+  isEmpty: () => boolean;
+  summary: { prenda: GarmentType; color: string; ubicacion: Placement; tamano: string };
+};
+
+type StudioProps = {
+  /** Prendas que se ofrecen (por defecto, todas). */
+  garmentIds?: GarmentType[];
+  /** Enlace "¿Prefieres que lo diseñemos nosotros?" */
+  altHref?: string;
+  /** Texto con el precio de partida que se muestra junto al CTA. */
+  priceNote?: string;
+  ctaLabel?: string;
+  /** Ventajas listadas sobre el botón final. */
+  highlights?: string[];
+  /** Diálogo final: en Next envía un brief; en Shopify añade al carrito. */
+  renderCheckout?: (props: CheckoutProps) => React.ReactNode;
+};
+
+export function DesignStudio({
+  garmentIds,
+  altHref = '/personaliza',
+  priceNote = 'Sudaderas desde 49,90 €',
+  ctaLabel = 'Pedir mi boceto gratis',
+  highlights = ['Te enviamos el boceto bordable y el precio en 48 h', 'No bordamos nada hasta que lo apruebas'],
+  renderCheckout = (p) => <SendDesign {...p} />
+}: StudioProps = {}) {
+  const garmentList = garmentIds ? garments.filter((g) => garmentIds.includes(g.id)) : garments;
   const editor = useRef<EditorHandle>(null);
   const viewer = useRef<Garment3DHandle>(null);
 
-  const [type, setType] = useState<GarmentType>('sudadera');
+  const [type, setType] = useState<GarmentType>(garmentList[0]?.id ?? 'sudadera');
   const [color, setColor] = useState(fabricColors[0]);
   const [placement, setPlacement] = useState<Placement>('centro');
   const [scale, setScale] = useState(1);
@@ -49,13 +77,15 @@ export function DesignStudio() {
 
   const optionsPanel = (
     <div className="space-y-6">
-      <Option title="Prenda">
-        <div className="grid grid-cols-3 gap-2">
-          {garments.map((g) => (
-            <Chip key={g.id} active={type === g.id} onClick={() => setType(g.id)}>{g.label}</Chip>
-          ))}
-        </div>
-      </Option>
+      {garmentList.length > 1 && (
+        <Option title="Prenda">
+          <div className="grid grid-cols-3 gap-2">
+            {garmentList.map((g) => (
+              <Chip key={g.id} active={type === g.id} onClick={() => setType(g.id)}>{g.label}</Chip>
+            ))}
+          </div>
+        </Option>
+      )}
 
       <Option title={`Color de la prenda: ${color.name}`}>
         <div className="flex flex-wrap gap-2">
@@ -105,7 +135,7 @@ export function DesignStudio() {
           <h1 className="mt-2 text-4xl sm:text-5xl">Diseña tu prenda</h1>
           <p className="mt-2 max-w-xl text-tinta-700">Sube tu dibujo o foto, escribe o dibuja a mano y míralo sobre la prenda en 3D. Nosotros lo convertimos en bordado.</p>
         </div>
-        <Link href="/personaliza" className="text-sm underline underline-offset-4">¿Prefieres que lo diseñemos nosotros?</Link>
+        <a href={altHref} className="text-sm underline underline-offset-4">¿Prefieres que lo diseñemos nosotros?</a>
       </div>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:gap-10">
@@ -119,7 +149,7 @@ export function DesignStudio() {
               </p>
             </div>
             <div className="hidden rounded-3xl bg-lino-100 p-5 ring-1 ring-tinta/10 lg:block">
-              <CtaBlock onSend={() => setSending(true)} />
+              <CtaBlock onSend={() => setSending(true)} items={[...highlights, priceNote]} label={ctaLabel} />
             </div>
           </div>
         </div>
@@ -147,15 +177,15 @@ export function DesignStudio() {
           </div>
 
           <div className="mt-8 rounded-3xl bg-lino-100 p-5 ring-1 ring-tinta/10 lg:hidden">
-            <CtaBlock onSend={() => setSending(true)} />
+            <CtaBlock onSend={() => setSending(true)} items={[...highlights, priceNote]} label={ctaLabel} />
           </div>
         </div>
       </div>
 
-      {sending && (
-        <SendDesign
-          onClose={() => setSending(false)}
-          getFiles={async () => {
+      {sending &&
+        renderCheckout({
+          onClose: () => setSending(false),
+          getFiles: async () => {
             const files: File[] = [];
             const png = await editor.current?.exportPng();
             if (png) files.push(new File([png], 'diseno.png', { type: 'image/png' }));
@@ -165,30 +195,29 @@ export function DesignStudio() {
               files.push(new File([blob], 'vista-3d.jpg', { type: 'image/jpeg' }));
             }
             return [...files, ...uploads];
-          }}
-          isEmpty={() => editor.current?.isEmpty() ?? true}
-          summary={{
+          },
+          isEmpty: () => editor.current?.isEmpty() ?? true,
+          summary: {
             prenda: type,
             color: color.name,
             ubicacion: placement,
             tamano: `${Math.round(scale * 100)}%`
-          }}
-        />
-      )}
+          }
+        })}
     </div>
   );
 }
 
-function CtaBlock({ onSend }: { onSend: () => void }) {
+function CtaBlock({ onSend, items, label }: { onSend: () => void; items: string[]; label: string }) {
   return (
     <div>
       <ul className="mb-4 space-y-1.5 text-sm text-tinta-700">
-        {['Te enviamos el boceto bordable y el precio en 48 h', 'Sin compromiso: no producimos hasta que lo apruebas', 'Sudaderas desde 49,90 €'].map((t) => (
+        {items.map((t) => (
           <li key={t} className="flex items-center gap-2"><CheckIcon className="h-4 w-4 shrink-0 text-bosque" />{t}</li>
         ))}
       </ul>
       <button onClick={onSend} className="btn-primary w-full py-4 text-base">
-        Pedir mi boceto gratis <ArrowIcon className="h-4 w-4" />
+        {label} <ArrowIcon className="h-4 w-4" />
       </button>
     </div>
   );
