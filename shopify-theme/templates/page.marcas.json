@@ -1,0 +1,15 @@
+{
+  "sections": {
+    "brands": {
+      "type": "br-brand-boost",
+      "settings": {
+        "eyebrow": "Para marcas, emprendedores y empresas",
+        "title": "Impulsa tu marca con bordado",
+        "lead": "Bordamos tus prendas con la identidad de tu marca. Nos traes el producto y tu diseño, o lo diseñamos nosotros. Sin límite de cantidad: te lo bordamos todo.",
+        "email": "",
+        "whatsapp": ""
+      }
+    }
+  },
+  "order": ["brands"]
+}

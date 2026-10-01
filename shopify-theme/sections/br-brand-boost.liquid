@@ -1,0 +1,217 @@
+{%- comment -%}
+  "Impulsa tu marca": servicio de bordado para marcas.
+  Dos modalidades (prenda + diseño del cliente / prenda del cliente + diseño del estudio),
+  sin límite de cantidad, y formulario de contacto de Shopify (llega al email de la tienda).
+{%- endcomment -%}
+
+<style>
+  .br-brands { --bb-ink: #171412; --bb-muted: #5b544f; --bb-cream: #f5f0e8; --bb-card: #fbf8f3; --bb-accent: #c2461f; --bb-accent-dark: #a33a18; --bb-green: #1e3a2f; --bb-gold: #b98a3e;
+    color: var(--bb-ink); font-family: var(--font-body--family, system-ui, sans-serif); background: var(--bb-cream); }
+  .br-brands * { box-sizing: border-box; }
+  .br-brands h1, .br-brands h2, .br-brands h3 { font-family: var(--font-heading--family, Georgia, serif); font-weight: 500; letter-spacing: -0.01em; line-height: 1.08; margin: 0; color: inherit; }
+  .br-brands p { margin: 0; }
+  .bb-wrap { max-width: 1240px; margin: 0 auto; padding: 0 20px; }
+  .bb-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; opacity: .7; }
+  .bb-hero { background: var(--bb-green); color: #f5f0e8; padding: clamp(56px, 9vw, 112px) 0; }
+  .bb-hero h1 { font-size: clamp(40px, 7vw, 84px); margin-top: 16px; max-width: 14ch; }
+  .bb-hero h1 em { color: #e2c48d; font-style: italic; }
+  .bb-hero__lead { margin-top: 26px; font-size: clamp(17px, 2vw, 20px); line-height: 1.55; max-width: 46ch; opacity: .88; }
+  .bb-cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+  .bb-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; padding: 15px 28px; font-weight: 600; font-size: 15px; text-decoration: none; transition: background .2s, color .2s, border-color .2s; border: 1px solid transparent; cursor: pointer; }
+  .bb-btn--light { background: #f5f0e8; color: var(--bb-green); }
+  .bb-btn--light:hover { background: #fff; }
+  .bb-btn--ghost { border-color: rgba(245,240,232,.4); color: #f5f0e8; }
+  .bb-btn--ghost:hover { background: rgba(245,240,232,.1); }
+  .bb-btn--accent { background: var(--bb-accent); color: #fff; box-shadow: 0 8px 22px -10px rgba(194,70,31,.8); }
+  .bb-btn--accent:hover { background: var(--bb-accent-dark); }
+  .bb-pills { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 36px; }
+  .bb-pill { border: 1px solid rgba(245,240,232,.25); border-radius: 999px; padding: 8px 14px; font-size: 13px; }
+  .bb-section { padding: clamp(56px, 8vw, 96px) 0; }
+  .bb-section h2 { font-size: clamp(30px, 4.4vw, 52px); max-width: 20ch; }
+  .bb-section__lead { margin-top: 18px; color: var(--bb-muted); font-size: 17px; line-height: 1.6; max-width: 56ch; }
+  .bb-modes { display: grid; gap: 16px; margin-top: 40px; }
+  @media (min-width: 860px) { .bb-modes { grid-template-columns: 1fr 1fr; } }
+  .bb-card { background: var(--bb-card); border: 1px solid rgba(23,20,18,.1); border-radius: 28px; padding: clamp(26px, 3.5vw, 40px); }
+  .bb-card__tag { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--bb-accent); }
+  .bb-card h3 { font-size: clamp(26px, 3vw, 34px); margin-top: 10px; }
+  .bb-card__text { margin-top: 12px; color: var(--bb-muted); line-height: 1.6; }
+  .bb-list { list-style: none; padding: 0; margin: 20px 0 0; display: grid; gap: 10px; }
+  .bb-list li { display: flex; gap: 10px; align-items: flex-start; line-height: 1.5; }
+  .bb-list svg { flex: none; margin-top: 3px; color: var(--bb-green); }
+  .bb-benefits { display: grid; gap: 28px; margin-top: 40px; }
+  @media (min-width: 760px) { .bb-benefits { grid-template-columns: repeat(4, 1fr); } }
+  .bb-benefit h3 { font-family: var(--font-body--family, system-ui); font-size: 17px; font-weight: 600; margin-top: 12px; letter-spacing: 0; }
+  .bb-benefit p { margin-top: 6px; color: var(--bb-muted); font-size: 15px; line-height: 1.55; }
+  .bb-benefit__icon { color: var(--bb-gold); }
+  .bb-steps { counter-reset: s; display: grid; gap: 28px; margin-top: 40px; list-style: none; padding: 0; }
+  @media (min-width: 760px) { .bb-steps { grid-template-columns: repeat(4, 1fr); } }
+  .bb-steps li { counter-increment: s; }
+  .bb-steps li::before { content: "0" counter(s); display: block; font-family: var(--font-heading--family, Georgia, serif); font-size: 44px; color: rgba(194,70,31,.85); }
+  .bb-stitch { height: 1.5px; margin: 14px 0; background-image: linear-gradient(90deg, rgba(23,20,18,.25) 50%, transparent 0); background-size: 10px 1.5px; }
+  .bb-steps h3 { font-family: var(--font-body--family, system-ui); font-size: 17px; font-weight: 600; letter-spacing: 0; }
+  .bb-steps p { margin-top: 6px; color: var(--bb-muted); font-size: 15px; line-height: 1.55; }
+  .bb-band { background: #ede5d8; }
+  .bb-contact { display: grid; gap: 40px; }
+  @media (min-width: 960px) { .bb-contact { grid-template-columns: 1fr 1.2fr; align-items: start; } }
+  .bb-form { background: var(--bb-card); border: 1px solid rgba(23,20,18,.1); border-radius: 28px; padding: clamp(24px, 3.5vw, 40px); display: grid; gap: 16px; }
+  .bb-grid2 { display: grid; gap: 16px; }
+  @media (min-width: 640px) { .bb-grid2 { grid-template-columns: 1fr 1fr; } }
+  .bb-field label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+  .bb-field input:not([type=radio]), .bb-field select, .bb-field textarea { width: 100%; border: 1px solid rgba(23,20,18,.18); border-radius: 14px; background: var(--bb-cream); padding: 13px 15px; font: inherit; font-size: 15px; color: var(--bb-ink); }
+  .bb-field input:focus, .bb-field select:focus, .bb-field textarea:focus { outline: 2px solid rgba(194,70,31,.35); border-color: var(--bb-ink); }
+  .bb-radios { display: grid; gap: 10px; }
+  .bb-radio { display: flex; gap: 12px; align-items: flex-start; border: 1px solid rgba(23,20,18,.15); border-radius: 16px; padding: 14px 16px; cursor: pointer; background: var(--bb-cream); }
+  .bb-radio input { flex: none; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--bb-accent); }
+  .bb-radio strong { display: block; font-size: 15px; }
+  .bb-radio span span { display: block; font-size: 13px; color: var(--bb-muted); margin-top: 2px; }
+  .bb-note { font-size: 13px; color: var(--bb-muted); text-align: center; }
+  .bb-alert { border-radius: 14px; padding: 14px 16px; font-size: 15px; }
+  .bb-alert--ok { background: #dce6df; color: var(--bb-green); }
+  .bb-alert--err { background: #f6ded3; color: var(--bb-accent-dark); }
+  .bb-direct { margin-top: 24px; display: grid; gap: 8px; font-size: 15px; }
+  .bb-direct a { color: var(--bb-ink); }
+</style>
+
+{%- capture check -%}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>{%- endcapture -%}
+{%- capture spark -%}<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></svg>{%- endcapture -%}
+
+<div class="br-brands">
+  <section class="bb-hero">
+    <div class="bb-wrap">
+      <p class="bb-eyebrow">{{ section.settings.eyebrow }}</p>
+      <h1>{{ section.settings.title }}</h1>
+      <p class="bb-hero__lead">{{ section.settings.lead }}</p>
+      <div class="bb-cta-row">
+        <a class="bb-btn bb-btn--light" href="#contacto">Cuéntanos tu proyecto →</a>
+        <a class="bb-btn bb-btn--ghost" href="#como-trabajamos">Cómo trabajamos</a>
+      </div>
+      <div class="bb-pills">
+        <span class="bb-pill">Sin límite de cantidad</span>
+        <span class="bb-pill">Con tus prendas</span>
+        <span class="bb-pill">Diseño propio o el nuestro</span>
+        <span class="bb-pill">Marcas · Merch · Empresas · Eventos</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="bb-section">
+    <div class="bb-wrap">
+      <p class="bb-eyebrow">Dos formas de trabajar</p>
+      <h2>Tú traes la prenda. Nosotros la convertimos en marca.</h2>
+      <p class="bb-section__lead">Da igual si son 10 o 1.000 unidades: bordamos todo lo que necesites, con el mismo cuidado en cada pieza.</p>
+
+      <div class="bb-modes">
+        <article class="bb-card">
+          <span class="bb-card__tag">Opción 1</span>
+          <h3>Tienes la prenda y el diseño</h3>
+          <p class="bb-card__text">Tráenos tus prendas y tu logo o diseño. Lo preparamos para bordado y lo bordamos en todas tus unidades.</p>
+          <ul class="bb-list">
+            <li>{{ check }}<span>Adaptamos tu archivo al bordado (puntadas, tamaño y colores de hilo)</span></li>
+            <li>{{ check }}<span>Te enseñamos una prueba antes de bordar la tirada</span></li>
+            <li>{{ check }}<span>Bordamos todas las prendas que nos traigas</span></li>
+          </ul>
+        </article>
+        <article class="bb-card">
+          <span class="bb-card__tag">Opción 2</span>
+          <h3>Tienes la prenda, nosotros el diseño</h3>
+          <p class="bb-card__text">¿Aún no tienes logo o quieres algo nuevo para tu colección? Lo diseñamos para tu marca y lo bordamos en tus prendas.</p>
+          <ul class="bb-list">
+            <li>{{ check }}<span>Diseño de logo, ilustración o colección pensado para bordar</span></li>
+            <li>{{ check }}<span>Ajustamos la propuesta contigo hasta que te encante</span></li>
+            <li>{{ check }}<span>Solo tienes que traer tus prendas: del resto nos encargamos</span></li>
+          </ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="bb-section bb-band">
+    <div class="bb-wrap">
+      <p class="bb-eyebrow">Por qué con BR</p>
+      <h2>Bordado que hace que tu marca se vea premium</h2>
+      <div class="bb-benefits">
+        <div class="bb-benefit"><span class="bb-benefit__icon">{{ spark }}</span><h3>Sin límite de cantidad</h3><p>Desde una tirada corta hasta grandes pedidos. Tú decides cuántas.</p></div>
+        <div class="bb-benefit"><span class="bb-benefit__icon">{{ spark }}</span><h3>Con tus propias prendas</h3><p>Trabajamos sobre la prenda que elijas para tu marca.</p></div>
+        <div class="bb-benefit"><span class="bb-benefit__icon">{{ spark }}</span><h3>Estudio de diseño</h3><p>No solo bordamos: diseñamos pensando en cómo luce el hilo sobre la tela.</p></div>
+        <div class="bb-benefit"><span class="bb-benefit__icon">{{ spark }}</span><h3>Dura más que la prenda</h3><p>El bordado no se agrieta ni se despega con los lavados.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bb-section" id="como-trabajamos">
+    <div class="bb-wrap">
+      <p class="bb-eyebrow">Proceso</p>
+      <h2>Cómo trabajamos con marcas</h2>
+      <ol class="bb-steps">
+        <li><div class="bb-stitch"></div><h3>Nos cuentas el proyecto</h3><p>Qué prendas, cuántas unidades y si ya tienes diseño.</p></li>
+        <li><div class="bb-stitch"></div><h3>Propuesta y presupuesto</h3><p>Preparamos el diseño bordable y te damos precio.</p></li>
+        <li><div class="bb-stitch"></div><h3>Nos traes las prendas</h3><p>Validamos una prueba contigo antes de empezar la tirada.</p></li>
+        <li><div class="bb-stitch"></div><h3>Bordamos y entregamos</h3><p>Bordamos todas las unidades y te las devolvemos listas.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="bb-section bb-band" id="contacto">
+    <div class="bb-wrap bb-contact">
+      <div>
+        <p class="bb-eyebrow">Contacto</p>
+        <h2>Cuéntanos tu proyecto</h2>
+        <p class="bb-section__lead">Te respondemos con una propuesta y presupuesto sin compromiso. Si ya tienes logo o diseño, te pediremos los archivos por email.</p>
+        <div class="bb-direct">
+          {%- if section.settings.email != blank -%}<span>✉︎ <a href="mailto:{{ section.settings.email }}">{{ section.settings.email }}</a></span>{%- endif -%}
+          {%- if section.settings.whatsapp != blank -%}<span>☏ <a href="https://wa.me/{{ section.settings.whatsapp | remove: '+' | remove: ' ' }}" target="_blank" rel="noopener">WhatsApp</a></span>{%- endif -%}
+        </div>
+      </div>
+
+      {%- form 'contact', id: 'br-brand-form', class: 'bb-form' -%}
+        {%- if form.posted_successfully? -%}
+          <p class="bb-alert bb-alert--ok" role="status">¡Gracias! Hemos recibido tu proyecto y te escribiremos muy pronto.</p>
+        {%- elsif form.errors -%}
+          <div class="bb-alert bb-alert--err" role="alert">{{ form.errors | default_errors }}</div>
+        {%- endif -%}
+
+        <input type="hidden" name="contact[Origen]" value="Impulsa tu marca">
+
+        <div class="bb-field">
+          <label>¿Qué necesitas?</label>
+          <div class="bb-radios">
+            <label class="bb-radio"><input type="radio" name="contact[Servicio]" value="Tengo prenda y diseño: solo bordado" checked><span><strong>Tengo la prenda y el diseño</strong><span>Solo necesito que lo bordéis</span></span></label>
+            <label class="bb-radio"><input type="radio" name="contact[Servicio]" value="Tengo la prenda: necesito diseño + bordado"><span><strong>Tengo la prenda, necesito el diseño</strong><span>Diseño de logo o colección + bordado</span></span></label>
+            <label class="bb-radio"><input type="radio" name="contact[Servicio]" value="No lo tengo claro"><span><strong>No lo tengo claro</strong><span>Os cuento la idea y me asesoráis</span></span></label>
+          </div>
+        </div>
+
+        <div class="bb-grid2">
+          <div class="bb-field"><label for="bb-name">Nombre *</label><input id="bb-name" type="text" name="contact[Nombre]" required autocomplete="name"></div>
+          <div class="bb-field"><label for="bb-brand">Marca / empresa *</label><input id="bb-brand" type="text" name="contact[Marca]" required></div>
+          <div class="bb-field"><label for="bb-email">Email *</label><input id="bb-email" type="email" name="contact[email]" required autocomplete="email" value="{{ form.email }}"></div>
+          <div class="bb-field"><label for="bb-phone">Teléfono / WhatsApp</label><input id="bb-phone" type="tel" name="contact[Teléfono]" autocomplete="tel"></div>
+          <div class="bb-field"><label for="bb-garment">Tipo de prenda</label><input id="bb-garment" type="text" name="contact[Prendas]" placeholder="Sudaderas, camisetas, gorras…"></div>
+          <div class="bb-field"><label for="bb-qty">Unidades aproximadas</label><input id="bb-qty" type="text" name="contact[Unidades]" placeholder="Ej.: 40"></div>
+        </div>
+
+        <div class="bb-field"><label for="bb-web">Web o Instagram de la marca</label><input id="bb-web" type="text" name="contact[Web]" placeholder="opcional"></div>
+        <div class="bb-field"><label for="bb-body">Cuéntanos el proyecto *</label><textarea id="bb-body" name="contact[body]" rows="5" required placeholder="Qué quieres bordar, dónde va el bordado, colores, fecha límite…"></textarea></div>
+
+        <button type="submit" class="bb-btn bb-btn--accent">Enviar proyecto</button>
+        <p class="bb-note">Sin compromiso · Te respondemos lo antes posible</p>
+      {%- endform -%}
+    </div>
+  </section>
+</div>
+
+{% schema %}
+{
+  "name": "Impulsa tu marca (BR)",
+  "tag": "section",
+  "class": "section-br-brands",
+  "settings": [
+    { "type": "text", "id": "eyebrow", "label": "Antetítulo", "default": "Para marcas, emprendedores y empresas" },
+    { "type": "text", "id": "title", "label": "Título", "default": "Impulsa tu marca con bordado" },
+    { "type": "textarea", "id": "lead", "label": "Texto principal", "default": "Bordamos tus prendas con la identidad de tu marca. Nos traes el producto y tu diseño, o lo diseñamos nosotros. Sin límite de cantidad: te lo bordamos todo." },
+    { "type": "text", "id": "email", "label": "Email de contacto (opcional)" },
+    { "type": "text", "id": "whatsapp", "label": "WhatsApp (opcional, formato 34600000000)" }
+  ],
+  "presets": [{ "name": "Impulsa tu marca (BR)" }]
+}
+{% endschema %}

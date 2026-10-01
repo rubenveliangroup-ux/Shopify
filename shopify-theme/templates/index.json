@@ -251,9 +251,25 @@
             "group_LRpnce",
             "group_r4CNDj"
           ]
+        },
+        "button_marcas": {
+          "type": "button",
+          "name": "Impulsa tu marca",
+          "settings": {
+            "label": "Impulsa tu marca →",
+            "link": "shopify://pages/impulsa-tu-marca",
+            "open_in_new_tab": false,
+            "style_class": "button-secondary",
+            "width": "fit-content",
+            "custom_width": 100,
+            "width_mobile": "fit-content",
+            "custom_width_mobile": 100
+          },
+          "blocks": {}
         }
       },
       "block_order": [
+        "button_marcas",
         "logo_z8EtM8",
         "group_tJPbhh"
       ],
