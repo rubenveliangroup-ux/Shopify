@@ -11,7 +11,7 @@ type Config = {
   cartUrl: string;
   altHref: string;
   /** Ajustes de la calculadora (editor de temas) + variantes de los productos de extra. */
-  embroidery?: Partial<EmbroideryConfig> & {
+  embroidery?: Partial<Record<keyof EmbroideryConfig, unknown>> & {
     enabled?: boolean;
     tramosTexto?: string;
     tierVariants?: PricedVariant[];
@@ -21,7 +21,11 @@ type Config = {
 
 function pricingFrom(c: Config['embroidery']): EmbroideryPricing | undefined {
   if (!c || c.enabled === false) return undefined;
-  const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+  // Admite números o texto con coma decimal ("0,75") desde el editor de temas
+  const num = (v: unknown, d: number) => {
+    const n = typeof v === 'string' ? Number(v.trim().replace(',', '.')) : v;
+    return typeof n === 'number' && Number.isFinite(n) && (typeof v !== 'string' || v.trim() !== '') ? n : d;
+  };
   const D = DEFAULT_EMBROIDERY_CONFIG;
   const tramos = (c.tramosTexto ?? '')
     .split(/[,;\s]+/)
