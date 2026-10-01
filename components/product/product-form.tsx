@@ -14,9 +14,9 @@ export function ProductForm({ product }: { product: Product }) {
   const [showSticky, setShowSticky] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  const firstAvailable = product.variants.find((v) => v.availableForSale) ?? product.variants[0];
+  // Solo se preseleccionan las opciones con un único valor: la talla la elige el cliente.
   const [selected, setSelected] = useState<Record<string, string>>(() =>
-    Object.fromEntries(firstAvailable?.selectedOptions.map((o) => [o.name, o.value]) ?? [])
+    Object.fromEntries(product.options.filter((o) => o.values.length === 1).map((o) => [o.name, o.values[0]]))
   );
 
   const variant = useMemo(
@@ -37,8 +37,11 @@ export function ProductForm({ product }: { product: Product }) {
     product.variants.some(
       (v) =>
         v.availableForSale &&
-        v.selectedOptions.every((o) => (o.name === name ? o.value === value : selected[o.name] === o.value))
+        v.selectedOptions.every((o) =>
+          o.name === name ? o.value === value : !selected[o.name] || selected[o.name] === o.value
+        )
     );
+  const missing = product.options.find((o) => !selected[o.name])?.name;
 
   const price = variant?.price ?? product.priceRange.minVariantPrice;
   const compare = variant?.compareAtPrice;
@@ -51,7 +54,7 @@ export function ProductForm({ product }: { product: Product }) {
     setAdding(false);
   }
 
-  const cta = !variant ? 'Elige una opción' : available ? 'Añadir al carrito' : 'Agotado temporalmente';
+  const cta = missing ? `Elige tu ${missing.toLowerCase()}` : !variant ? 'No disponible' : available ? 'Añadir al carrito' : 'Agotado temporalmente';
 
   return (
     <div>
@@ -67,7 +70,7 @@ export function ProductForm({ product }: { product: Product }) {
         product.options.map((option) => (
           <fieldset key={option.id} className="mt-6">
             <legend className="mb-2 text-sm font-medium">
-              {option.name}: <span className="text-tinta-500">{selected[option.name]}</span>
+              {option.name}: <span className="text-tinta-500">{selected[option.name] ?? 'elige una'}</span>
             </legend>
             <div className="flex flex-wrap gap-2">
               {option.values.map((value) => {
@@ -110,8 +113,13 @@ export function ProductForm({ product }: { product: Product }) {
             <p className="truncate text-sm font-medium">{product.title}</p>
             <p className="text-sm font-semibold">{formatMoney(price.amount, price.currencyCode)}</p>
           </div>
-          <button onClick={onAdd} disabled={!available || adding} tabIndex={showSticky ? 0 : -1} className="btn-primary px-5">
-            {adding ? '…' : available ? 'Añadir' : 'Agotado'}
+          <button
+            onClick={() => (missing ? buttonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) : onAdd())}
+            disabled={(!missing && !available) || adding}
+            tabIndex={showSticky ? 0 : -1}
+            className="btn-primary px-5"
+          >
+            {adding ? '…' : missing ? `Elegir ${missing.toLowerCase()}` : available ? 'Añadir' : 'Agotado'}
           </button>
         </div>
       </div>

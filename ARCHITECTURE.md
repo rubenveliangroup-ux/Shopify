@@ -71,10 +71,10 @@ El separador "pespunte" (`.stitch`) es el recurso gráfico de marca.
 
 ## 5. Checklist para producción (catálogo Shopify)
 
-Estado detectado en la tienda (30/09/2026): 6 sudaderas, 49,90 €, **sin tallas, sin descripción, inventario 0**.
+Estado de la tienda (01/10/2026): 6 sudaderas a 49,90 €.
 
-1. **Tallas**: crear opción *Talla* (S–XXL) en cada sudadera. Hoy solo hay "Default Title"; el selector ya está listo.
-2. **Inventario**: con 0 unidades y seguimiento activo, Shopify marca el producto como agotado. Si se produce bajo pedido, activar "Seguir vendiendo sin stock" o desactivar el seguimiento.
+1. ✅ **Tallas**: opción *Talla* S, M, L, XL y XXL creada en las 6 sudaderas (30 variantes, 49,90 €).
+2. ✅ **Venta bajo pedido**: todas las variantes con "Seguir vendiendo sin stock" (inventario 0, producción bajo pedido).
 3. **Descripciones y SEO** por producto (la web usa `description` y `seo`).
 4. **Fotos reales** de prenda y primer plano del bordado (varias por producto: la galería y el hover las aprovechan).
 5. **Reseñas reales** (Judge.me / Okendo) — no se han inventado testimonios.
