@@ -9,6 +9,24 @@ Versión del estudio (`components/studio`) incrustada en el tema Horizon, sin se
 - `sections/br-design-studio.liquid` + `templates/page.disena.json` → página "Diseña tu prenda".
 - `assets/` es el resultado de `npm run build:theme` (no editar a mano).
 
+## Color, hilos, medidas y menú
+
+- **Selector de color único** `<br-color-picker>` (`components/color/color-picker-element.ts`): estudio,
+  «Envíanos tu diseño» e «Impulsa tu marca» (`assets/br-color-picker.js`). Cuadrícula, degradado + tono,
+  código hex; en modo hilo asigna el hilo real más cercano (CIEDE2000).
+- **Carta de hilos**: `assets/br-hilos.json` (editable en *Editar código*, sin recompilar). Formato:
+  `[{ "code": "BR-001", "name": "Blanco óptico", "hex": "#ffffff" }, …]`. El calculador cuenta hilos:
+  dos colores que caen en el mismo hilo cuentan como uno.
+- **Color de prenda**: editor de temas → «Estudio de diseño BR» → «Modo de color de prenda»
+  (libre / stock) y «Colores de stock» (`Nombre #hex` por línea). En modo libre, las líneas llevan
+  `Aviso: Color sujeto a confirmación de disponibilidad` y `_Color prenda (hex)`.
+- **Medidas**: fuente única `snippets/br-medidas.liquid` (variable `medidas`; imagen opcional con
+  `imagen` + `mostrar_imagen`). Se muestra en el bloque «Medidas (BR)» de la ficha de producto
+  (`blocks/br-medidas.liquid`, solo productos con opción «Talla») y en el selector de talla del estudio.
+- **Menú**: `snippets/br-nav-extra.liquid` añade «Diseña tu prenda» e «Impulsa tu marca» si el menú
+  `main-menu` no los trae, y subraya el apartado activo. Parches mínimos sobre Horizon en
+  `theme-overrides/` (originales en `original/` para comparar).
+
 ## Calculadora de bordado
 
 Ver [CALCULADORA.md](./CALCULADORA.md): estimación de puntadas y colores, tramos de precio, productos ocultos y calibración.
