@@ -39,11 +39,11 @@ async function addAll(cartAddUrl: string, lines: Line[]) {
  * Usa un formulario multipart a /cart/add (método oficial de Shopify para subir
  * archivos como propiedades de la línea): archivos y especificaciones quedan en el pedido.
  */
-export function ShopifyAddToCart({ onClose, getAttachments, details, blockedReason, embroidery, garment, variants, price, priceValue, cartAddUrl, cartUrl, sizeChart }: Props) {
+export function ShopifyAddToCart({ onClose, getAttachments, details, blockedReason, embroidery, garment, variants, price, priceValue, cartAddUrl, cartUrl, sizeChart, size }: Props) {
   const q = embroidery?.quote;
   const extra = q?.kind === 'priced' ? q.total : 0;
   const unitTotal = priceValue + extra;
-  const [variantId, setVariantId] = useState<number | null>(null);
+  const [variantId, setVariantId] = useState<number | null>(() => variants.find((v) => v.title === size && v.available)?.id ?? null);
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
   const [sending, setSending] = useState(false);

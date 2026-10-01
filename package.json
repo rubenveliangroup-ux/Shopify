@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "build:theme": "node shopify-theme/build.mjs"
+    "build:theme": "node shopify-theme/build.mjs",
+    "test:3d": "esbuild shopify-theme/tools/test-px-cm.ts --bundle --platform=node --format=esm --alias:@=. --external:react --external:@react-three/fiber --log-level=error --outfile=node_modules/.cache/test-px-cm.mjs && node node_modules/.cache/test-px-cm.mjs",
+    "glb:validar": "node shopify-theme/tools/validar-glb.mjs",
+    "glb:optimizar": "node shopify-theme/tools/optimizar-glb.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.114.0",
@@ -23,15 +26,21 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/extensions": "^4.5.1",
+    "@gltf-transform/functions": "^4.5.1",
     "@types/node": "^20.14.10",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@types/three": "^0.169.0",
     "autoprefixer": "^10.4.19",
+    "draco3dgltf": "^1.5.7",
     "esbuild": "^0.24.2",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.35",
+    "meshoptimizer": "^1.3.0",
     "postcss": "^8.4.39",
+    "sharp": "^0.35.5",
     "tailwindcss": "^3.4.6",
     "typescript": "^5.5.3"
   }

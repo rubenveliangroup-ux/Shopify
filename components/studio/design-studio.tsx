@@ -14,6 +14,7 @@ import { analyzeDesign, type DesignAnalysis } from './embroidery-estimate';
 import { buildEstimate, EmbroideryPanel, type EmbroideryEstimate } from './embroidery-panel';
 import type { EmbroideryPricing } from './embroidery-pricing';
 import { Garment3D, type Garment3DHandle } from './garment-3d';
+import type { ModelInfo, SizeRow } from './garment-glb';
 import { OwnDesignForm, type OwnDesignData } from './own-design-form';
 import { SendDesign } from './send-design';
 
@@ -34,6 +35,8 @@ export type CheckoutProps = {
   garment?: { name: string; hex: string; free: boolean };
   /** Estimación de bordado (solo diseños hechos en el estudio y con calculadora activa). */
   embroidery?: EmbroideryEstimate & { sizes: string };
+  /** Talla que el cliente estaba viendo en 3D (se preselecciona). */
+  size?: string;
 };
 
 type StudioProps = {
@@ -55,6 +58,8 @@ type StudioProps = {
   stockColors?: NamedColor[];
   /** URL del JSON con la carta de hilos (assets/br-hilos.json en el tema). */
   threadPaletteUrl?: string;
+  /** GLB de la prenda y medidas por talla (MODELO-3D.md). Sin url, modelo 3D básico. */
+  model?: { url?: string; sizes?: SizeRow[] };
 };
 
 type Mode = 'disenar' | 'enviar';
@@ -82,7 +87,8 @@ export function DesignStudio({
   pricing,
   colorMode = MODO_COLOR_PRENDA,
   stockColors = COLORES_STOCK,
-  threadPaletteUrl
+  threadPaletteUrl,
+  model
 }: StudioProps = {}) {
   const garmentList = garmentIds ? garments.filter((g) => garmentIds.includes(g.id)) : garments;
   const editors = { delante: useRef<EditorHandle>(null), detras: useRef<EditorHandle>(null) };
@@ -109,6 +115,13 @@ export function DesignStudio({
   const [mobileTab, setMobileTab] = useState<'diseno' | 'prenda'>('diseno');
 
   const textures = { delante: useSideTexture(), detras: useSideTexture() };
+
+  // --- Modelo 3D real (GLB): talla que se ve y siluetas para el lienzo
+  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
+  const [silhouettes, setSilhouettes] = useState<Record<Side, string> | null>(null);
+  const viewSizes = model?.sizes ?? [];
+  const [viewSize, setViewSize] = useState<string | undefined>(undefined);
+  const shownSize = viewSize ?? modelInfo?.baseSize;
 
   // --- Calculadora de bordado: análisis por lado con espera tras cada cambio
   const [analyses, setAnalyses] = useState<Record<Side, DesignAnalysis | null>>({ delante: null, detras: null });
@@ -192,6 +205,7 @@ export function DesignStudio({
     const q = estimate?.quote;
     setCheckout({
       onClose: () => setCheckout(null),
+      size: modelInfo ? shownSize : undefined,
       details,
       prenda: type,
       color: color.name,
@@ -333,7 +347,33 @@ export function DesignStudio({
         <div className="lg:order-2">
           <div className="sticky top-20 z-10 space-y-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pb-2">
             <div className="relative aspect-square max-h-[46vh] w-full overflow-hidden rounded-3xl ring-1 ring-tinta/10 lg:aspect-[4/3] lg:max-h-[56vh]">
-              <Garment3D ref={viewer} type={type} color={color.hex} view={side} front={textures.delante.texture} back={textures.detras.texture} />
+              <Garment3D
+                ref={viewer}
+                type={type}
+                color={color.hex}
+                view={side}
+                front={textures.delante.texture}
+                back={textures.detras.texture}
+                modelUrl={model?.url}
+                size={shownSize}
+                sizes={viewSizes}
+                onModelReady={setModelInfo}
+                onSilhouettes={setSilhouettes}
+              />
+              {modelInfo && viewSizes.length > 0 && (
+                <div className="absolute left-3 top-12 flex gap-0.5 rounded-full bg-lino-100/90 p-1 text-xs font-medium" role="group" aria-label="Talla que se muestra">
+                  {viewSizes.map((r) => (
+                    <button
+                      key={r.talla}
+                      onClick={() => setViewSize(r.talla)}
+                      aria-pressed={shownSize === r.talla}
+                      className={cn('min-w-[2rem] rounded-full px-1.5 py-1', shownSize === r.talla && 'bg-tinta text-lino')}
+                    >
+                      {r.talla}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="absolute left-3 top-3 flex gap-1 rounded-full bg-lino-100/90 p-1 text-xs font-medium">
                 {sides.map((s) => (
                   <button key={s.id} onClick={() => setSide(s.id)} className={cn('rounded-full px-3 py-1', side === s.id && 'bg-tinta text-lino')}>
@@ -370,6 +410,7 @@ export function DesignStudio({
                   ref={editors[s.id]}
                   side={s.id}
                   garmentColor={color.hex}
+                  silhouetteUrl={silhouettes?.[s.id]}
                   threads={threads}
                   onChange={s.id === 'delante' ? refreshFront : refreshBack}
                   onUpload={onUpload}

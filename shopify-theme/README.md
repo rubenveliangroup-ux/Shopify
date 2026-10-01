@@ -27,6 +27,13 @@ Versión del estudio (`components/studio`) incrustada en el tema Horizon, sin se
   `main-menu` no los trae, y subraya el apartado activo. Parches mínimos sobre Horizon en
   `theme-overrides/` (originales en `original/` para comparar).
 
+## Modelo 3D (GLB)
+
+Ver [`MODELO-3D.md`](MODELO-3D.md): ficha para encargar o comprar el modelo, `npm run glb:validar`,
+`npm run glb:optimizar`, ajuste «URL del modelo 3D (.glb)» de la sección y limitaciones. Sin GLB
+válido, el estudio usa la sudadera 3D básica. `npm run test:3d` comprueba que px→cm se mantiene
+en todas las tallas.
+
 ## Calculadora de bordado
 
 Ver [CALCULADORA.md](./CALCULADORA.md): estimación de puntadas y colores, tramos de precio, productos ocultos y calibración.

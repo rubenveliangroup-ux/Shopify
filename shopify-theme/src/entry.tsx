@@ -17,6 +17,8 @@ type Config = {
   stockColors?: string;
   /** URL de assets/br-hilos.json (carta de hilos editable). */
   threadPaletteUrl?: string;
+  /** GLB de la sudadera (ajuste del tema o modelo 3D del producto). Vacío = modelo básico. */
+  modelUrl?: string;
   /** Tabla de medidas (snippet br-medidas.liquid). */
   sizeChart?: SizeChartData;
   /** Ajustes de la calculadora (editor de temas) + variantes de los productos de extra. */
@@ -89,6 +91,7 @@ function mount() {
       colorMode={(config.colorMode === 'stock' ? 'stock' : 'libre') as GarmentColorMode}
       stockColors={parseColorList(config.stockColors)}
       threadPaletteUrl={config.threadPaletteUrl}
+      model={{ url: config.modelUrl || undefined, sizes: config.sizeChart?.filas }}
       renderCheckout={(p) => (
         <ShopifyAddToCart
           {...p}

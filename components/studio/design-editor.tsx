@@ -27,6 +27,8 @@ export type EditorHandle = {
 type Props = {
   side: Side;
   garmentColor: string;
+  /** Vista real de la prenda (render del GLB a la escala del lienzo); si no hay, silueta dibujada. */
+  silhouetteUrl?: string;
   /** Carta de hilos: los colores del diseño se ajustan al hilo real más cercano. */
   threads?: Thread[];
   onChange: () => void;
@@ -46,7 +48,7 @@ function resolveFont(cssVar: string, scope?: Element | null) {
   return v || 'sans-serif';
 }
 
-export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEditor({ side, garmentColor, threads = DEFAULT_THREADS, onChange, onUpload }, ref) {
+export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEditor({ side, garmentColor, silhouetteUrl, threads = DEFAULT_THREADS, onChange, onUpload }, ref) {
   const STORAGE_KEY = `br-studio-${side}`;
   const host = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
@@ -383,7 +385,14 @@ export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEdito
           if (f) addImage(f);
         }}
       >
-        <GarmentSilhouette color={garmentColor} side={side} />
+        {silhouetteUrl ? (
+          <>
+            <img src={silhouetteUrl} alt="" aria-hidden className="pointer-events-none absolute inset-0 h-full w-full" />
+            <span className="pointer-events-none absolute left-3.5 top-2 text-[15px] text-black/35">{side === 'delante' ? 'DELANTE' : 'DETRÁS'}</span>
+          </>
+        ) : (
+          <GarmentSilhouette color={garmentColor} side={side} />
+        )}
         <div ref={host} className="absolute inset-0" />
         {count === 0 && (
           <div className="pointer-events-none absolute inset-0 grid place-items-center p-8 text-center">
