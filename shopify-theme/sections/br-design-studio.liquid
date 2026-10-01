@@ -23,6 +23,10 @@
       "priceValue": {{ product.price | divided_by: 100.0 | json }},
       "cartAddUrl": {{ routes.cart_add_url | json }},
       "cartUrl": {{ routes.cart_url | json }},
+      "colorMode": {{ section.settings.modo_color_prenda | json }},
+      "stockColors": {{ section.settings.colores_stock | json }},
+      "threadPaletteUrl": {{ 'br-hilos.json' | asset_url | json }},
+      "sizeChart": {% render 'br-medidas', formato: 'json' %},
       "embroidery": {
         "enabled": {{ section.settings.calc_enabled | json }},
         "puntadasPorCm2": {{ section.settings.puntadas_por_cm2 | json }},
@@ -74,6 +78,9 @@
       "id": "alt_link",
       "label": "Enlace \"¿Prefieres que lo diseñemos nosotros?\""
     },
+    { "type": "header", "content": "Color de la prenda" },
+    { "type": "select", "id": "modo_color_prenda", "label": "Modo de color de prenda (MODO_COLOR_PRENDA)", "options": [ { "value": "libre", "label": "Libre: cualquier color (sujeto a confirmación)" }, { "value": "stock", "label": "Stock: solo los colores de la lista" } ], "default": "libre" },
+    { "type": "textarea", "id": "colores_stock", "label": "Colores de stock", "default": "Negro #1c1c1e\nCrudo #ece5d6\nGris jaspeado #9b9b9d\nAzul marino #1f2a44\nVerde bosque #2f4a3a\nArena #cdb898\nBurdeos #5b1f2b", "info": "Uno por línea: nombre y código hexadecimal. La carta de hilos se edita en assets/br-hilos.json." },
     { "type": "header", "content": "Calculadora de bordado" },
     { "type": "paragraph", "content": "Los precios que paga el cliente son los de las variantes de \"Extra de bordado\" y \"Color adicional de bordado\". Mantén estos ajustes iguales a esos precios: abre la página con ?calibrar=1 para comprobarlo." },
     { "type": "checkbox", "id": "calc_enabled", "label": "Activar calculadora de bordado", "default": true },

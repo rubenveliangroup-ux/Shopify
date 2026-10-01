@@ -4,7 +4,9 @@ import { Canvas, FabricImage, IText, PencilBrush, Point, type FabricObject } fro
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { UploadIcon } from '../icons';
-import { CM_PER_PX, EDITOR_SIZE, threadColors, type Side } from './config';
+import { ColorPicker } from '../color/ColorPicker';
+import { DEFAULT_THREADS, type Thread } from '../color/threads';
+import { CM_PER_PX, EDITOR_SIZE, type Side } from './config';
 import { removeWhiteBackground } from './embroidery-estimate';
 import { GarmentSilhouette } from './silhouette';
 
@@ -25,6 +27,8 @@ export type EditorHandle = {
 type Props = {
   side: Side;
   garmentColor: string;
+  /** Carta de hilos: los colores del diseño se ajustan al hilo real más cercano. */
+  threads?: Thread[];
   onChange: () => void;
   onUpload: (file: File) => void;
 };
@@ -42,7 +46,7 @@ function resolveFont(cssVar: string, scope?: Element | null) {
   return v || 'sans-serif';
 }
 
-export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEditor({ side, garmentColor, onChange, onUpload }, ref) {
+export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEditor({ side, garmentColor, threads = DEFAULT_THREADS, onChange, onUpload }, ref) {
   const STORAGE_KEY = `br-studio-${side}`;
   const host = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
@@ -55,7 +59,8 @@ export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEdito
   const fileInput = useRef<HTMLInputElement>(null);
 
   const [mode, setMode] = useState<'select' | 'draw'>('select');
-  const [color, setColor] = useState(threadColors[0]);
+  const [color, setColor] = useState(threads[0]?.hex ?? '#ffffff'); // hilo aplicado
+  const [pickerValue, setPickerValue] = useState(color); // color que elige el cliente
   const [brush, setBrush] = useState(8);
   const [selected, setSelected] = useState<FabricObject | null>(null);
   const [count, setCount] = useState(0);
@@ -397,20 +402,18 @@ export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEdito
         {dims ? <>Tamaño de la selección: <strong className="text-tinta">≈ {dims}</strong> (talla M)</> : 'Selecciona un elemento para moverlo, girarlo o cambiar su tamaño.'}
       </p>
 
-      {/* Color de hilo */}
+      {/* Color de hilo: cualquier color, ajustado al hilo real más cercano */}
       <div className="mt-4">
-        <p className="label">Color de hilo {mode === 'draw' ? '(pincel)' : selected ? '(selección)' : ''}</p>
-        <div className="flex flex-wrap gap-2">
-          {threadColors.map((c) => (
-            <button
-              key={c}
-              aria-label={`Hilo ${c}`}
-              onClick={() => applyColor(c)}
-              className={cn('h-8 w-8 rounded-full ring-1 ring-tinta/20 transition', color === c && 'ring-2 ring-hilo ring-offset-2 ring-offset-lino')}
-              style={{ background: c }}
-            />
-          ))}
-        </div>
+        <ColorPicker
+          kind="thread"
+          label={`Color de hilo ${mode === 'draw' ? '(pincel)' : selected ? '(selección)' : '(texto y dibujo)'}`}
+          threads={threads}
+          value={pickerValue}
+          onChange={(d) => {
+            setPickerValue(d.hex);
+            if (!d.live) applyColor(d.thread?.hex ?? d.hex); // al soltar: se aplica el hilo real
+          }}
+        />
       </div>
 
       {mode === 'draw' && (

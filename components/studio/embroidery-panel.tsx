@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { hexToLab } from '../color/color-math';
+import { nearestThread, threadLabel, type Thread } from '../color/threads';
 import type { Side } from './config';
 import { unionColors, type ColorStat, type DesignAnalysis } from './embroidery-estimate';
 import { fmtEur, fmtInt, formulaTierPrice, quote, round2, type EmbroideryPricing, type Quote } from './embroidery-pricing';
@@ -18,12 +20,28 @@ export type EmbroideryEstimate = {
 
 const sideLabel: Record<Side, string> = { delante: 'delante', detras: 'detrás' };
 
+/** Asigna a cada color su hilo real más cercano; dos colores con el mismo hilo cuentan como uno. */
+export function mapToThreads(colors: ColorStat[], threads: Thread[]): ColorStat[] {
+  const byThread = new Map<string, ColorStat>();
+  for (const c of colors) {
+    const t = nearestThread(c.hex, threads);
+    const key = `${t.code}|${t.hex}`;
+    const prev = byThread.get(key);
+    if (prev) {
+      prev.areaCm2 += c.areaCm2;
+      prev.share += c.share;
+    } else byThread.set(key, { hex: t.hex, lab: hexToLab(t.hex), areaCm2: c.areaCm2, share: c.share, thread: t });
+  }
+  return [...byThread.values()].sort((a, b) => b.share - a.share);
+}
+
 /** Combina delante + detrás: puntadas sumadas y paleta de hilos común. */
-export function buildEstimate(p: EmbroideryPricing, perSide: Record<Side, DesignAnalysis | null>): EmbroideryEstimate {
+export function buildEstimate(p: EmbroideryPricing, perSide: Record<Side, DesignAnalysis | null>, threads?: Thread[]): EmbroideryEstimate {
   const used = (Object.keys(perSide) as Side[]).filter((s) => perSide[s]);
   const rawStitches = used.reduce((a, s) => a + perSide[s]!.rawStitches, 0);
   const stitches = Math.round(rawStitches * (1 + p.margenSeguridad));
-  const colors = unionColors(used.map((s) => perSide[s]!.colors));
+  const union = unionColors(used.map((s) => perSide[s]!.colors));
+  const colors = threads?.length ? mapToThreads(union, threads) : union;
   const warnings: string[] = [];
   for (const s of used) {
     const a = perSide[s]!;
@@ -64,7 +82,7 @@ export function EmbroideryPanel({
           <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
             <Stat label="Puntadas aprox." value={`≈ ${fmtInt(estimate!.stitches)}`} />
             <Stat
-              label="Colores de hilo"
+              label="Hilos"
               value={estimate!.colors.length > pricing.maxColores ? `+${pricing.maxColores}` : `${estimate!.colors.length}/${pricing.maxColores}`}
               warn={estimate!.colors.length > pricing.maxColores}
             />
@@ -73,7 +91,12 @@ export function EmbroideryPanel({
 
           <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Colores detectados">
             {estimate!.colors.map((c) => (
-              <span key={c.hex} title={`${c.hex} · ${(c.share * 100).toFixed(0)} %`} className="h-5 w-5 rounded-full ring-1 ring-tinta/20" style={{ background: c.hex }} />
+              <span
+                key={c.hex}
+                title={`${c.thread ? threadLabel(c.thread) + ' · ' : ''}${c.hex} · ${(c.share * 100).toFixed(0)} %`}
+                className="h-6 w-6 rounded-full ring-1 ring-tinta/20"
+                style={{ background: c.hex }}
+              />
             ))}
           </div>
 

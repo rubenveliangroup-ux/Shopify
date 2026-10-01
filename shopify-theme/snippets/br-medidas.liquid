@@ -1,0 +1,62 @@
+{%- doc -%}
+  ÚNICA FUENTE de la tabla de medidas de BR (ficha de producto y «Diseña tu prenda»).
+
+  Para cambiar las medidas, edita `medidas` (talla,largo,pecho,bajo relajado,manga en cm,
+  prenda plana; tallas separadas por «;»).
+  Para mostrar la imagen de la tabla: súbela a Assets como `br-tabla-medidas.png`
+  (o cambia `imagen`) y pon `mostrar_imagen` a true.
+
+  @param {string} [formato] - 'tabla' (por defecto, HTML) o 'json' (para el estudio 3D)
+{%- enddoc -%}
+{%- liquid
+  assign medidas = 'XS,58,61,34,55;S,61,63,36,57;M,64,65,38,59;L,67,67,40,61;XL,70,70,42,63;XXL,73,73,44,65'
+  assign imagen = 'br-tabla-medidas.png'
+  assign mostrar_imagen = false
+  assign nota = 'Medidas de la prenda en plano, en cm. Corte boxy y corto: si prefieres más holgura, elige una talla más.'
+  assign filas = medidas | split: ';'
+-%}
+
+{%- if formato == 'json' -%}
+{"nota": {{ nota | json }}, "imagen": {% if mostrar_imagen %}{{ imagen | asset_url | json }}{% else %}null{% endif %}, "filas": [
+  {%- for fila in filas -%}
+    {%- assign c = fila | split: ',' -%}
+    {"talla": {{ c[0] | strip | json }}, "largo": {{ c[1] | strip | plus: 0 }}, "pecho": {{ c[2] | strip | plus: 0 }}, "bajo": {{ c[3] | strip | plus: 0 }}, "manga": {{ c[4] | strip | plus: 0 }}}{% unless forloop.last %},{% endunless %}
+  {%- endfor -%}
+]}
+{%- else -%}
+  <div class="br-medidas">
+    <div class="br-medidas__scroll" role="region" aria-label="Tabla de medidas" tabindex="0">
+      <table class="br-medidas__tabla">
+        <thead>
+          <tr><th scope="col">Talla</th><th scope="col">Largo</th><th scope="col">Pecho</th><th scope="col">Bajo relajado</th><th scope="col">Manga</th></tr>
+        </thead>
+        <tbody>
+          {%- for fila in filas -%}
+            {%- assign c = fila | split: ',' -%}
+            <tr><th scope="row">{{ c[0] | strip }}</th><td>{{ c[1] | strip }}</td><td>{{ c[2] | strip }}</td><td>{{ c[3] | strip }}</td><td>{{ c[4] | strip }}</td></tr>
+          {%- endfor -%}
+        </tbody>
+      </table>
+    </div>
+    <p class="br-medidas__nota">{{ nota }}</p>
+    {%- if mostrar_imagen -%}
+      <a class="br-medidas__imagen" href="{{ imagen | asset_url }}" target="_blank" rel="noopener" aria-label="Ampliar la tabla de medidas">
+        <img src="{{ imagen | asset_url }}" alt="Tabla de medidas de BR" loading="lazy" width="1200" height="900">
+        <span>Toca para ampliar</span>
+      </a>
+    {%- endif -%}
+  </div>
+  <style>
+    .br-medidas { display: grid; gap: 10px; font-size: 14px; }
+    .br-medidas__scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid rgb(var(--color-foreground-rgb, 23 20 18) / 0.12); border-radius: 12px; }
+    .br-medidas__tabla { width: 100%; min-width: 360px; border-collapse: collapse; text-align: center; font-variant-numeric: tabular-nums; }
+    .br-medidas__tabla th, .br-medidas__tabla td { padding: 10px 8px; border-bottom: 1px solid rgb(var(--color-foreground-rgb, 23 20 18) / 0.08); }
+    .br-medidas__tabla thead th { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    .br-medidas__tabla tbody th { font-weight: 700; }
+    .br-medidas__tabla tbody tr:last-child > * { border-bottom: 0; }
+    .br-medidas__nota { margin: 0; font-size: 13px; opacity: .75; }
+    .br-medidas__imagen { display: block; position: relative; border-radius: 12px; overflow: hidden; touch-action: pinch-zoom; }
+    .br-medidas__imagen img { display: block; width: 100%; height: auto; }
+    .br-medidas__imagen span { position: absolute; right: 8px; bottom: 8px; background: rgb(0 0 0 / .65); color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 999px; }
+  </style>
+{%- endif -%}

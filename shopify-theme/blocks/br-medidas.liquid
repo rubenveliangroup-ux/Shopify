@@ -1,0 +1,37 @@
+{%- comment -%}
+  Bloque «Medidas» para la ficha de producto (junto al selector de talla).
+  Solo se muestra en productos con opción «Talla». Contenido: snippet br-medidas (fuente única).
+{%- endcomment -%}
+{%- assign producto = closest.product -%}
+{%- if producto.options contains 'Talla' or block.settings.mostrar_siempre -%}
+  <details class="br-medidas-bloque" {% if block.settings.abierto %}open{% endif %} {{ block.shopify_attributes }}>
+    <summary>
+      <span>{{ block.settings.titulo | default: 'Medidas' }}</span>
+      <span class="br-medidas-bloque__icono" aria-hidden="true">+</span>
+    </summary>
+    <div class="br-medidas-bloque__contenido">
+      {% render 'br-medidas' %}
+    </div>
+  </details>
+  <style>
+    .br-medidas-bloque { border-top: 1px solid rgb(var(--color-foreground-rgb) / 0.12); border-bottom: 1px solid rgb(var(--color-foreground-rgb) / 0.12); }
+    .br-medidas-bloque summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 48px; font-weight: 600; }
+    .br-medidas-bloque summary::-webkit-details-marker { display: none; }
+    .br-medidas-bloque[open] .br-medidas-bloque__icono { transform: rotate(45deg); }
+    .br-medidas-bloque__icono { font-size: 20px; transition: transform .2s; }
+    .br-medidas-bloque__contenido { padding-bottom: 16px; }
+  </style>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Medidas (BR)",
+  "tag": null,
+  "settings": [
+    { "type": "text", "id": "titulo", "label": "Título", "default": "Medidas" },
+    { "type": "checkbox", "id": "abierto", "label": "Abierto por defecto", "default": false },
+    { "type": "checkbox", "id": "mostrar_siempre", "label": "Mostrar también en productos sin opción «Talla»", "default": false }
+  ],
+  "presets": [{ "name": "Medidas (BR)" }]
+}
+{% endschema %}

@@ -3,7 +3,9 @@
 import { useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ArrowIcon, CheckIcon, UploadIcon } from '../icons';
-import { fabricColors } from './config';
+import { ColorPicker } from '../color/ColorPicker';
+import { AVISO_COLOR_LIBRE, type NamedColor } from '../color/color-config';
+import { nearestThread, threadLabel, type Thread } from '../color/threads';
 
 export type OwnDesignData = {
   files: File[];
@@ -11,7 +13,7 @@ export type OwnDesignData = {
   posicionDelante: string;
   posicionDetras: string;
   tamano: string;
-  color: string;
+  color: NamedColor;
   hilos: string;
   especificaciones: string;
 };
@@ -29,10 +31,18 @@ const backPositions = ['Bajo el cuello', 'Centro de la espalda', 'Grande en toda
  */
 export function OwnDesignForm({
   defaultColor,
+  garmentColors,
+  freeColor,
+  stockColors,
+  threads,
   ctaLabel,
   onSubmit
 }: {
-  defaultColor: string;
+  defaultColor: NamedColor;
+  garmentColors: NamedColor[];
+  freeColor: boolean;
+  stockColors: NamedColor[];
+  threads: Thread[];
   ctaLabel: string;
   onSubmit: (data: OwnDesignData) => void;
 }) {
@@ -44,8 +54,11 @@ export function OwnDesignForm({
   const [otraDelante, setOtraDelante] = useState('');
   const [otraDetras, setOtraDetras] = useState('');
   const [tamano, setTamano] = useState('');
-  const [color, setColor] = useState(defaultColor);
+  const [color, setColor] = useState<NamedColor>(defaultColor);
   const [hilos, setHilos] = useState('');
+  const [threadPick, setThreadPick] = useState(threads[0]?.hex ?? '#ffffff');
+  const [chosenThreads, setChosenThreads] = useState<Thread[]>([]);
+  const inStock = stockColors.some((c) => c.hex.toLowerCase() === color.hex.toLowerCase());
   const [specs, setSpecs] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -71,7 +84,7 @@ export function OwnDesignForm({
       posicionDetras: back ? (posDetras === 'Otra' ? otraDetras || 'Otra (ver especificaciones)' : posDetras) : '',
       tamano: tamano.trim(),
       color,
-      hilos: hilos.trim(),
+      hilos: [chosenThreads.map((t) => `${threadLabel(t)} (${t.hex})`).join(', '), hilos.trim()].filter(Boolean).join(' · '),
       especificaciones: specs.trim().slice(0, 1000)
     });
   }
@@ -172,28 +185,40 @@ export function OwnDesignForm({
         {/* Colores */}
         <div>
           <p className="font-display text-xl">3. Colores</p>
-          <p className="label mt-3">Color de la prenda: {color}</p>
-          <div className="flex flex-wrap gap-2">
-            {fabricColors.map((c) => (
-              <button
-                key={c.hex}
-                type="button"
-                aria-label={c.name}
-                title={c.name}
-                onClick={() => setColor(c.name)}
-                className={cn('h-9 w-9 rounded-full ring-1 ring-tinta/20', color === c.name && 'ring-2 ring-hilo ring-offset-2 ring-offset-lino')}
-                style={{ background: c.hex }}
-              />
-            ))}
+          <div className="mt-3">
+            <ColorPicker label="Color de la prenda" swatches={garmentColors} free={freeColor} value={color.hex} onChange={(d) => setColor({ name: d.name, hex: d.hex })} />
+            {freeColor && !inStock && <p className="mt-2 rounded-xl bg-oro-100 px-3 py-2 text-xs">{AVISO_COLOR_LIBRE}.</p>}
           </div>
-          <div className="mt-4">
-            <label className="label" htmlFor="own-threads">Colores de hilo</label>
+          <div className="mt-5">
+            <ColorPicker kind="thread" label="Colores de hilo" threads={threads} value={threadPick} onChange={(d) => setThreadPick(d.hex)} />
+            <button
+              type="button"
+              onClick={() => {
+                const t = nearestThread(threadPick, threads);
+                setChosenThreads((l) => (l.some((x) => x.hex === t.hex && x.code === t.code) ? l : [...l, t]).slice(0, 12));
+              }}
+              className="mt-2 min-h-11 rounded-full border border-tinta/20 px-4 py-2 text-sm font-medium hover:border-tinta"
+            >
+              + Añadir este hilo
+            </button>
+            {chosenThreads.length > 0 && (
+              <ul className="mt-3 flex flex-wrap gap-2">
+                {chosenThreads.map((t, i) => (
+                  <li key={t.code + t.hex} className="flex items-center gap-2 rounded-full bg-lino-200 py-1 pl-1 pr-1 text-xs">
+                    <span className="h-6 w-6 rounded-full ring-1 ring-tinta/20" style={{ background: t.hex }} />
+                    {threadLabel(t)}
+                    <button type="button" aria-label={`Quitar ${t.name}`} className="grid h-7 w-7 place-items-center rounded-full hover:bg-lino-300" onClick={() => setChosenThreads((l) => l.filter((_, j) => j !== i))}>×</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <label className="label mt-4" htmlFor="own-threads">Otras indicaciones de color (opcional)</label>
             <input
               id="own-threads"
               value={hilos}
               onChange={(e) => setHilos(e.target.value)}
               className="field"
-              placeholder="Ej.: como en el archivo / blanco y dorado / Pantone 186 C"
+              placeholder="Ej.: como en el archivo / Pantone 186 C"
             />
           </div>
         </div>

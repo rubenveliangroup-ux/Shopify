@@ -1,5 +1,7 @@
 import { createRoot } from 'react-dom/client';
+import { parseColorList, type GarmentColorMode } from '@/components/color/color-config';
 import { DesignStudio } from '@/components/studio/design-studio';
+import type { SizeChartData } from '@/components/studio/size-chart';
 import { DEFAULT_EMBROIDERY_CONFIG, type EmbroideryConfig, type EmbroideryPricing, type PricedVariant } from '@/components/studio/embroidery-pricing';
 import { ShopifyAddToCart, type ShopifyVariant } from './add-to-cart';
 
@@ -10,6 +12,13 @@ type Config = {
   cartAddUrl: string;
   cartUrl: string;
   altHref: string;
+  /** Color de prenda: "libre" o "stock" + lista de stock ("Negro #1c1c1e" por línea). */
+  colorMode?: string;
+  stockColors?: string;
+  /** URL de assets/br-hilos.json (carta de hilos editable). */
+  threadPaletteUrl?: string;
+  /** Tabla de medidas (snippet br-medidas.liquid). */
+  sizeChart?: SizeChartData;
   /** Ajustes de la calculadora (editor de temas) + variantes de los productos de extra. */
   embroidery?: Partial<Record<keyof EmbroideryConfig, unknown>> & {
     enabled?: boolean;
@@ -77,6 +86,9 @@ function mount() {
       ctaLabel="Elegir talla y añadir al carrito"
       highlights={['Te enviamos el boceto para aprobar antes de bordar', `Producción en 7–10 días laborables`]}
       pricing={pricingFrom(config.embroidery)}
+      colorMode={(config.colorMode === 'stock' ? 'stock' : 'libre') as GarmentColorMode}
+      stockColors={parseColorList(config.stockColors)}
+      threadPaletteUrl={config.threadPaletteUrl}
       renderCheckout={(p) => (
         <ShopifyAddToCart
           {...p}
@@ -85,6 +97,7 @@ function mount() {
           priceValue={config.priceValue}
           cartAddUrl={config.cartAddUrl}
           cartUrl={config.cartUrl || '/cart'}
+          sizeChart={config.sizeChart}
         />
       )}
     />

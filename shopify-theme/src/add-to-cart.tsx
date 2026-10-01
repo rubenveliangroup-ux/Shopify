@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { CloseIcon } from '@/components/icons';
 import type { CheckoutProps } from '@/components/studio/design-studio';
+import { AVISO_COLOR_LIBRE } from '@/components/color/color-config';
+import { threadLabel } from '@/components/color/threads';
 import { fmtEur, fmtInt } from '@/components/studio/embroidery-pricing';
+import { SizeChart, type SizeChartData } from '@/components/studio/size-chart';
 import { cn } from '@/lib/utils';
 
 export type ShopifyVariant = { id: number; title: string; available: boolean };
@@ -13,6 +16,7 @@ type Props = CheckoutProps & {
   priceValue: number;
   cartAddUrl: string;
   cartUrl: string;
+  sizeChart?: SizeChartData;
 };
 
 type Line = { id: number; quantity: number; properties: Record<string, string>; files?: { label: string; file: File }[] };
@@ -35,7 +39,7 @@ async function addAll(cartAddUrl: string, lines: Line[]) {
  * Usa un formulario multipart a /cart/add (método oficial de Shopify para subir
  * archivos como propiedades de la línea): archivos y especificaciones quedan en el pedido.
  */
-export function ShopifyAddToCart({ onClose, getAttachments, details, blockedReason, embroidery, variants, price, priceValue, cartAddUrl, cartUrl }: Props) {
+export function ShopifyAddToCart({ onClose, getAttachments, details, blockedReason, embroidery, garment, variants, price, priceValue, cartAddUrl, cartUrl, sizeChart }: Props) {
   const q = embroidery?.quote;
   const extra = q?.kind === 'priced' ? q.total : 0;
   const unitTotal = priceValue + extra;
@@ -69,7 +73,7 @@ export function ShopifyAddToCart({ onClose, getAttachments, details, blockedReas
       const est: Record<string, string> = {};
       if (embroidery && q) {
         est['_Puntadas estimadas'] = `${fmtInt(embroidery.stitches)} (incluye +${Math.round((embroidery.stitches / Math.max(1, embroidery.rawStitches) - 1) * 100)} % de margen; sin margen ${fmtInt(embroidery.rawStitches)})`;
-        est['_Colores de hilo'] = `${embroidery.colors.length} (${embroidery.colors.map((c) => c.hex).join(', ')})`;
+        est['_Colores de hilo'] = `${embroidery.colors.length}: ${embroidery.colors.map((c) => (c.thread ? `${threadLabel(c.thread)} ${c.hex}` : c.hex)).join(', ')}`;
         est['_Tamaño del bordado'] = embroidery.sizes;
         est['_Tramo'] = q.kind === 'priced' ? q.tierLabel : 'Sujeto a presupuesto (no se ha cobrado el extra)';
         if (q.kind === 'priced') est['_Extra de bordado'] = `${fmtEur(q.total)} por unidad`;
@@ -77,6 +81,11 @@ export function ShopifyAddToCart({ onClose, getAttachments, details, blockedReas
 
       const mainProps: Record<string, string> = Object.fromEntries(details.filter(([k]) => k !== 'Prenda'));
       if (notes.trim()) mainProps['Notas'] = notes.trim().slice(0, 500);
+      // Color de prenda libre: aviso visible en carrito y pedido + hex exacto (privado)
+      if (garment?.free) {
+        mainProps['Aviso'] = AVISO_COLOR_LIBRE;
+        est['_Color prenda (hex)'] = garment.hex.toUpperCase();
+      }
       const ref = { '_Prenda vinculada': `Sudadera personalizada · talla ${variants.find((v) => v.id === variantId)?.title ?? ''}` };
 
       const lines: Line[] = [{ id: variantId, quantity, properties: { ...mainProps, ...est }, files: attachments }];
@@ -155,6 +164,8 @@ export function ShopifyAddToCart({ onClose, getAttachments, details, blockedReas
           ))}
         </dl>
 
+        {garment?.free && <p className="mt-4 rounded-xl bg-oro-100 px-4 py-3 text-sm">{AVISO_COLOR_LIBRE}.</p>}
+
         {blockedReason ? (
           <p className="mt-5 rounded-xl bg-oro-100 px-4 py-3 text-sm">{blockedReason}</p>
         ) : (
@@ -182,7 +193,11 @@ export function ShopifyAddToCart({ onClose, getAttachments, details, blockedReas
                   </button>
                 ))}
               </div>
-              <p className="mt-2 text-xs text-tinta-500">Corte oversize: si prefieres un ajuste más clásico, elige una talla menos.</p>
+              {sizeChart ? (
+                <SizeChart data={sizeChart} highlight={variants.find((v) => v.id === variantId)?.title} />
+              ) : (
+                <p className="mt-2 text-xs text-tinta-500">Corte oversize: si prefieres un ajuste más clásico, elige una talla menos.</p>
+              )}
             </fieldset>
 
             <div className="mt-5 flex items-center gap-4">

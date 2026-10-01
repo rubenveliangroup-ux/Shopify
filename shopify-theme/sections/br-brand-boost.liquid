@@ -55,6 +55,7 @@
   @media (min-width: 960px) { .bb-contact { grid-template-columns: 1fr 1.2fr; align-items: start; } }
   .bb-form { background: var(--bb-card); border: 1px solid rgba(23,20,18,.1); border-radius: 28px; padding: clamp(24px, 3.5vw, 40px); display: grid; gap: 16px; }
   .bb-grid2 { display: grid; gap: 16px; }
+  .bb-field br-color-picker { --bg: var(--bb-cream); }
   @media (min-width: 640px) { .bb-grid2 { grid-template-columns: 1fr 1fr; } }
   .bb-field label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
   .bb-field input:not([type=radio]), .bb-field select, .bb-field textarea { width: 100%; border: 1px solid rgba(23,20,18,.18); border-radius: 14px; background: var(--bb-cream); padding: 13px 15px; font: inherit; font-size: 15px; color: var(--bb-ink); }
@@ -190,12 +191,22 @@
           <div class="bb-field"><label for="bb-qty">Unidades aproximadas</label><input id="bb-qty" type="text" name="contact[Unidades]" placeholder="Ej.: 40"></div>
         </div>
 
+        <div class="bb-grid2">
+          <div class="bb-field">
+            <br-color-picker label="Color de la prenda (opcional)" name="contact[Color de la prenda]" value="#1c1c1e"></br-color-picker>
+          </div>
+          <div class="bb-field">
+            <br-color-picker kind="thread" label="Color de hilo de tu marca (opcional)" name="contact[Color de hilo]" value="#ffffff" thread-palette-url="{{ 'br-hilos.json' | asset_url }}"></br-color-picker>
+          </div>
+        </div>
+
         <div class="bb-field"><label for="bb-web">Web o Instagram de la marca</label><input id="bb-web" type="text" name="contact[Web]" placeholder="opcional"></div>
         <div class="bb-field"><label for="bb-body">Cuéntanos el proyecto *</label><textarea id="bb-body" name="contact[body]" rows="5" required placeholder="Qué quieres bordar, dónde va el bordado, colores, fecha límite…"></textarea></div>
 
         <button type="submit" class="bb-btn bb-btn--accent">Enviar proyecto</button>
         <p class="bb-note">Sin compromiso · Te respondemos lo antes posible</p>
       {%- endform -%}
+      <script src="{{ 'br-color-picker.js' | asset_url }}" defer></script>
     </div>
   </section>
 </div>

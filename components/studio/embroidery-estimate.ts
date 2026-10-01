@@ -10,10 +10,13 @@
  * 3. Puntadas ≈ área_cm² × puntadasPorCm2 + contorno_cm × puntadasPorCmBorde.
  * 4. Avisos: diseño demasiado pequeño y líneas más finas que el mínimo bordable.
  */
+import { labToHex, rgbToLab, type Lab } from '../color/color-math';
+import type { Thread } from '../color/threads';
 import type { EmbroideryConfig } from './embroidery-pricing';
 
-export type Lab = [number, number, number];
-export type ColorStat = { hex: string; lab: Lab; areaCm2: number; share: number };
+export type { Lab };
+/** Color del diseño; `thread` = hilo real asignado (cuando hay carta de hilos). */
+export type ColorStat = { hex: string; lab: Lab; areaCm2: number; share: number; thread?: Thread };
 
 export type DesignAnalysis = {
   areaCm2: number;
@@ -357,30 +360,4 @@ function nearest(cents: Lab[], p: Lab) {
     if (d < bd) [bd, best] = [d, i];
   }
   return best;
-}
-
-function rgbToLab(r: number, g: number, b: number): Lab {
-  const lin = (v: number) => ((v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
-  const R = lin(r), G = lin(g), B = lin(b);
-  const f = (t: number) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
-  const x = f((R * 0.4124 + G * 0.3576 + B * 0.1805) / 0.95047);
-  const y = f(R * 0.2126 + G * 0.7152 + B * 0.0722);
-  const z = f((R * 0.0193 + G * 0.1192 + B * 0.9505) / 1.08883);
-  return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
-}
-
-function labToHex([L, a, b]: Lab) {
-  const fy = (L + 16) / 116, fx = fy + a / 500, fz = fy - b / 200;
-  const inv = (t: number) => (t ** 3 > 0.008856 ? t ** 3 : (t - 16 / 116) / 7.787);
-  const X = inv(fx) * 0.95047, Y = inv(fy), Z = inv(fz) * 1.08883;
-  const lin = [X * 3.2406 - Y * 1.5372 - Z * 0.4986, -X * 0.9689 + Y * 1.8758 + Z * 0.0415, X * 0.0557 - Y * 0.204 + Z * 1.057];
-  return (
-    '#' +
-    lin
-      .map((v) => {
-        const s = v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055;
-        return Math.round(Math.min(1, Math.max(0, s)) * 255).toString(16).padStart(2, '0');
-      })
-      .join('')
-  );
 }

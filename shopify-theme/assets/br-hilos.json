@@ -1,0 +1,177 @@
+[
+  {
+    "code": "BR-001",
+    "name": "Blanco óptico",
+    "hex": "#ffffff"
+  },
+  {
+    "code": "BR-002",
+    "name": "Blanco roto",
+    "hex": "#f3eee2"
+  },
+  {
+    "code": "BR-003",
+    "name": "Crudo",
+    "hex": "#e6dcc6"
+  },
+  {
+    "code": "BR-004",
+    "name": "Arena",
+    "hex": "#cdb894"
+  },
+  {
+    "code": "BR-005",
+    "name": "Camel",
+    "hex": "#b08350"
+  },
+  {
+    "code": "BR-006",
+    "name": "Marrón chocolate",
+    "hex": "#5a3a26"
+  },
+  {
+    "code": "BR-007",
+    "name": "Negro",
+    "hex": "#111111"
+  },
+  {
+    "code": "BR-008",
+    "name": "Gris marengo",
+    "hex": "#3d3f43"
+  },
+  {
+    "code": "BR-009",
+    "name": "Gris medio",
+    "hex": "#8a8c8e"
+  },
+  {
+    "code": "BR-010",
+    "name": "Gris perla",
+    "hex": "#c9cacb"
+  },
+  {
+    "code": "BR-011",
+    "name": "Amarillo limón",
+    "hex": "#f4e04d"
+  },
+  {
+    "code": "BR-012",
+    "name": "Amarillo oro",
+    "hex": "#f2b705"
+  },
+  {
+    "code": "BR-013",
+    "name": "Mostaza",
+    "hex": "#c99a2e"
+  },
+  {
+    "code": "BR-014",
+    "name": "Oro viejo",
+    "hex": "#b98a3e"
+  },
+  {
+    "code": "BR-015",
+    "name": "Naranja",
+    "hex": "#f07c1f"
+  },
+  {
+    "code": "BR-016",
+    "name": "Teja",
+    "hex": "#c2461f"
+  },
+  {
+    "code": "BR-017",
+    "name": "Rojo",
+    "hex": "#c8102e"
+  },
+  {
+    "code": "BR-018",
+    "name": "Granate",
+    "hex": "#7a1f2b"
+  },
+  {
+    "code": "BR-019",
+    "name": "Rosa palo",
+    "hex": "#e8b4b8"
+  },
+  {
+    "code": "BR-020",
+    "name": "Rosa chicle",
+    "hex": "#e8589c"
+  },
+  {
+    "code": "BR-021",
+    "name": "Fucsia",
+    "hex": "#c4167c"
+  },
+  {
+    "code": "BR-022",
+    "name": "Lila",
+    "hex": "#b39ddb"
+  },
+  {
+    "code": "BR-023",
+    "name": "Morado",
+    "hex": "#5e2b7e"
+  },
+  {
+    "code": "BR-024",
+    "name": "Azul cielo",
+    "hex": "#8ec5e8"
+  },
+  {
+    "code": "BR-025",
+    "name": "Azul celeste",
+    "hex": "#4a90c8"
+  },
+  {
+    "code": "BR-026",
+    "name": "Azul royal",
+    "hex": "#1f4fa3"
+  },
+  {
+    "code": "BR-027",
+    "name": "Azul marino",
+    "hex": "#1b2a4a"
+  },
+  {
+    "code": "BR-028",
+    "name": "Turquesa",
+    "hex": "#1fa6a0"
+  },
+  {
+    "code": "BR-029",
+    "name": "Verde menta",
+    "hex": "#9ed9b5"
+  },
+  {
+    "code": "BR-030",
+    "name": "Verde hierba",
+    "hex": "#3f9b3a"
+  },
+  {
+    "code": "BR-031",
+    "name": "Verde botella",
+    "hex": "#1e5a3a"
+  },
+  {
+    "code": "BR-032",
+    "name": "Verde oliva",
+    "hex": "#6b6b2e"
+  },
+  {
+    "code": "BR-033",
+    "name": "Caqui",
+    "hex": "#8b7d55"
+  },
+  {
+    "code": "BR-034",
+    "name": "Plata (metalizado)",
+    "hex": "#b8bcc0"
+  },
+  {
+    "code": "BR-035",
+    "name": "Oro (metalizado)",
+    "hex": "#c9a54a"
+  }
+]

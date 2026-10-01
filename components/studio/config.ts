@@ -6,22 +6,6 @@ export const garments: { id: GarmentType; label: string }[] = [
   { id: 'camiseta', label: 'Camiseta' }
 ];
 
-export const fabricColors = [
-  { name: 'Negro', hex: '#1c1c1e' },
-  { name: 'Crudo', hex: '#ece5d6' },
-  { name: 'Gris jaspeado', hex: '#9b9b9d' },
-  { name: 'Azul marino', hex: '#1f2a44' },
-  { name: 'Verde bosque', hex: '#2f4a3a' },
-  { name: 'Arena', hex: '#cdb898' },
-  { name: 'Burdeos', hex: '#5b1f2b' }
-];
-
-/** Colores de hilo disponibles: limitarlos acerca el diseño a lo que realmente se puede bordar. */
-export const threadColors = [
-  '#ffffff', '#111111', '#c2461f', '#e8b53a', '#b98a3e', '#2f6b4f',
-  '#1e3a5f', '#6aa6d8', '#d9849b', '#7a3e8e', '#8b5a2b', '#a8a8a8'
-];
-
 export type Side = 'delante' | 'detras';
 export const sides: { id: Side; label: string }[] = [
   { id: 'delante', label: 'Delante' },

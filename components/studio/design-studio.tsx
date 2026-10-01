@@ -4,7 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { cn } from '@/lib/utils';
 import { ArrowIcon, CheckIcon } from '../icons';
-import { fabricColors, garments, sides, TEXTURE_SIZE, type GarmentType, type Side } from './config';
+import { ColorPicker } from '../color/ColorPicker';
+import { AVISO_COLOR_LIBRE, COLORES_HABITUALES, COLORES_STOCK, MODO_COLOR_PRENDA, type GarmentColorMode, type NamedColor } from '../color/color-config';
+import { DEFAULT_THREADS, loadThreadPalette, type Thread } from '../color/threads';
+import { garments, sides, TEXTURE_SIZE, type GarmentType, type Side } from './config';
 import { DesignEditor, type EditorHandle } from './design-editor';
 import { applyEmbroidery } from './embroidery';
 import { analyzeDesign, type DesignAnalysis } from './embroidery-estimate';
@@ -27,6 +30,8 @@ export type CheckoutProps = {
   color: string;
   /** Si existe, el envío está bloqueado y se muestra este aviso. */
   blockedReason?: string;
+  /** Color de prenda elegido; `free` = modo libre (sujeto a confirmación de disponibilidad). */
+  garment?: { name: string; hex: string; free: boolean };
   /** Estimación de bordado (solo diseños hechos en el estudio y con calculadora activa). */
   embroidery?: EmbroideryEstimate & { sizes: string };
 };
@@ -45,6 +50,11 @@ type StudioProps = {
   renderCheckout?: (props: CheckoutProps) => React.ReactNode;
   /** Calculadora de bordado (precios y tramos). Sin ella, el estudio funciona como antes. */
   pricing?: EmbroideryPricing;
+  /** "libre" (cualquier color, sujeto a confirmación) o "stock" (solo stockColors). */
+  colorMode?: GarmentColorMode;
+  stockColors?: NamedColor[];
+  /** URL del JSON con la carta de hilos (assets/br-hilos.json en el tema). */
+  threadPaletteUrl?: string;
 };
 
 type Mode = 'disenar' | 'enviar';
@@ -69,7 +79,10 @@ export function DesignStudio({
   ctaLabel = 'Pedir mi boceto gratis',
   highlights = ['Te enviamos el boceto bordable y el precio en 48 h', 'No bordamos nada hasta que lo apruebas'],
   renderCheckout = (p) => <SendDesign {...p} />,
-  pricing
+  pricing,
+  colorMode = MODO_COLOR_PRENDA,
+  stockColors = COLORES_STOCK,
+  threadPaletteUrl
 }: StudioProps = {}) {
   const garmentList = garmentIds ? garments.filter((g) => garmentIds.includes(g.id)) : garments;
   const editors = { delante: useRef<EditorHandle>(null), detras: useRef<EditorHandle>(null) };
@@ -78,7 +91,18 @@ export function DesignStudio({
   const [mode, setMode] = useState<Mode>('disenar');
   const [side, setSide] = useState<Side>('delante');
   const [type, setType] = useState<GarmentType>(garmentList[0]?.id ?? 'sudadera');
-  const [color, setColor] = useState(fabricColors[0]);
+  const stock = stockColors.length ? stockColors : COLORES_STOCK;
+  const freeColor = colorMode !== 'stock';
+  const gridColors = useMemo(
+    () => (freeColor ? [...stock, ...COLORES_HABITUALES.filter((c) => !stock.some((s) => s.hex === c.hex))] : stock),
+    [freeColor, stock]
+  );
+  const [color, setColor] = useState<NamedColor>(stock[0]);
+  const inStock = stock.some((c) => c.hex.toLowerCase() === color.hex.toLowerCase());
+  const [threads, setThreads] = useState<Thread[]>(DEFAULT_THREADS);
+  useEffect(() => {
+    loadThreadPalette(threadPaletteUrl).then(setThreads);
+  }, [threadPaletteUrl]);
   const [embroidery, setEmbroidery] = useState(true);
   const [uploads, setUploads] = useState<File[]>([]);
   const [checkout, setCheckout] = useState<CheckoutProps | null>(null);
@@ -114,8 +138,8 @@ export function DesignStudio({
     []
   );
   const estimate = useMemo(
-    () => (pricing && (analyses.delante || analyses.detras) ? buildEstimate(pricing, analyses) : null),
-    [pricing, analyses]
+    () => (pricing && (analyses.delante || analyses.detras) ? buildEstimate(pricing, analyses, threads) : null),
+    [pricing, analyses, threads]
   );
 
   const embroideryRef = useRef(embroidery);
@@ -161,7 +185,7 @@ export function DesignStudio({
     };
     const details: [string, string][] = [
       ['Prenda', garmentLabel(type)],
-      ['Color de la prenda', color.name],
+      ['Color de la prenda', `${color.name} (${color.hex.toUpperCase()})`],
       ['Bordado delante', used.some((s) => s.id === 'delante') ? `Sí (${sizeOf('delante')})` : 'No'],
       ['Bordado detrás', used.some((s) => s.id === 'detras') ? `Sí (${sizeOf('detras')})` : 'No']
     ];
@@ -171,6 +195,7 @@ export function DesignStudio({
       details,
       prenda: type,
       color: color.name,
+      garment: { name: color.name, hex: color.hex, free: freeColor && !inStock },
       ubicacion: used.length === 1 && used[0].id === 'detras' ? 'espalda' : 'centro',
       blockedReason: !used.length
         ? 'Tu diseño está vacío: sube una imagen, escribe o dibuja delante o detrás.'
@@ -207,7 +232,7 @@ export function DesignStudio({
   function openOwnDesignCheckout(d: OwnDesignData) {
     const details: [string, string][] = [
       ['Prenda', garmentLabel(type)],
-      ['Color de la prenda', d.color],
+      ['Color de la prenda', `${d.color.name} (${d.color.hex.toUpperCase()})`],
       ['Lado', d.lado],
       ...(d.posicionDelante ? ([['Posición delante', d.posicionDelante]] as [string, string][]) : []),
       ...(d.posicionDetras ? ([['Posición detrás', d.posicionDetras]] as [string, string][]) : []),
@@ -219,7 +244,8 @@ export function DesignStudio({
       onClose: () => setCheckout(null),
       details,
       prenda: type,
-      color: d.color,
+      color: d.color.name,
+      garment: { ...d.color, free: freeColor && !stock.some((c) => c.hex.toLowerCase() === d.color.hex.toLowerCase()) },
       ubicacion: d.lado === 'Detrás' ? 'espalda' : d.lado === 'Delante' ? 'pecho' : 'no-se',
       getAttachments: async () => d.files.map((f, i) => ({ label: `Diseño del cliente ${i + 1}`, file: f }))
     });
@@ -237,20 +263,16 @@ export function DesignStudio({
         </Option>
       )}
 
-      <Option title={`Color de la prenda: ${color.name}`}>
-        <div className="flex flex-wrap gap-2">
-          {fabricColors.map((c) => (
-            <button
-              key={c.hex}
-              aria-label={c.name}
-              title={c.name}
-              onClick={() => setColor(c)}
-              className={cn('h-9 w-9 rounded-full ring-1 ring-tinta/20', color.hex === c.hex && 'ring-2 ring-hilo ring-offset-2 ring-offset-lino')}
-              style={{ background: c.hex }}
-            />
-          ))}
-        </div>
-      </Option>
+      <div>
+        <ColorPicker
+          label="Color de la prenda"
+          swatches={gridColors}
+          free={freeColor}
+          value={color.hex}
+          onChange={(d) => setColor({ name: d.name, hex: d.hex })}
+        />
+        {freeColor && !inStock && <p className="mt-2 rounded-xl bg-oro-100 px-3 py-2 text-xs">{AVISO_COLOR_LIBRE}.</p>}
+      </div>
 
       <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl bg-lino-100 px-4 py-3 ring-1 ring-tinta/10">
         <span>
@@ -348,6 +370,7 @@ export function DesignStudio({
                   ref={editors[s.id]}
                   side={s.id}
                   garmentColor={color.hex}
+                  threads={threads}
                   onChange={s.id === 'delante' ? refreshFront : refreshBack}
                   onUpload={onUpload}
                 />
@@ -365,7 +388,15 @@ export function DesignStudio({
 
       {mode === 'enviar' && (
         <div className="mt-6">
-          <OwnDesignForm defaultColor={color.name} ctaLabel={ctaLabel} onSubmit={openOwnDesignCheckout} />
+          <OwnDesignForm
+            defaultColor={color}
+            garmentColors={gridColors}
+            freeColor={freeColor}
+            stockColors={stock}
+            threads={threads}
+            ctaLabel={ctaLabel}
+            onSubmit={openOwnDesignCheckout}
+          />
         </div>
       )}
 
