@@ -31,10 +31,10 @@ export default async function HomePage() {
             Sudaderas y camisetas premium bordadas a partir de tu dibujo, tu foto o tu logo. Te enseñamos el boceto gratis antes de dar una sola puntada.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link href="/personaliza" className="btn-primary px-8 py-4 text-base">
-              Crea tu diseño <ArrowIcon className="h-4 w-4" />
+            <Link href="/disena" className="btn-primary px-8 py-4 text-base">
+              Diseña tu prenda <ArrowIcon className="h-4 w-4" />
             </Link>
-            <Link href="/tienda" className="btn-ghost px-8 py-4 text-base">Ver la colección</Link>
+            <Link href="/tienda" className="btn-ghost px-8 py-4 text-base">Ver el catálogo</Link>
           </div>
           <ul className="mt-8 grid gap-2 text-sm text-tinta-700 sm:grid-cols-3">
             {['Boceto gratis en 48 h', 'Desde 1 unidad', 'Envío a toda España'].map((t) => (
@@ -64,12 +64,12 @@ export default async function HomePage() {
       {/* DOS CAMINOS — autoselección particular / marca */}
       <section className="container-page grid gap-4 md:grid-cols-2">
         <PathCard
-          href="/personaliza"
+          href="/disena"
           tone="light"
           eyebrow="Para ti"
           title="Tu prenda, tu diseño"
           text="Convierte un dibujo, una mascota, una frase o un recuerdo en una sudadera única. Desde 1 unidad."
-          cta="Personalizar mi prenda"
+          cta="Diseñar mi prenda en 3D"
         />
         <PathCard
           href="/marcas"
@@ -105,7 +105,7 @@ export default async function HomePage() {
             ))}
           </ol>
           <div className="mt-12 text-center">
-            <Link href="/personaliza" className="btn-primary px-8 py-4 text-base">Empezar con mi idea <ArrowIcon className="h-4 w-4" /></Link>
+            <Link href="/disena" className="btn-primary px-8 py-4 text-base">Empezar con mi idea <ArrowIcon className="h-4 w-4" /></Link>
           </div>
         </div>
       </section>

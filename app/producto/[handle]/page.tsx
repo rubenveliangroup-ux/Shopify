@@ -85,7 +85,7 @@ export default async function ProductPage({ params }: { params: { handle: string
               <li className="flex items-center gap-3"><NeedleIcon className="h-5 w-5 text-bosque" /> Producción en {site.productionDays} días laborables</li>
             </ul>
 
-            <Link href="/personaliza" className="mt-8 flex items-center justify-between gap-4 rounded-2xl bg-bosque-100 p-5 transition hover:bg-bosque/15">
+            <Link href="/disena" className="mt-8 flex items-center justify-between gap-4 rounded-2xl bg-bosque-100 p-5 transition hover:bg-bosque/15">
               <div>
                 <p className="font-semibold text-bosque">¿La quieres con tu propio diseño?</p>
                 <p className="text-sm text-tinta-700">Boceto gratis en 48 h, desde 1 unidad.</p>

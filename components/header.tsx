@@ -44,8 +44,8 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Link href="/personaliza" className="btn-primary hidden px-5 py-2.5 lg:inline-flex">
-            Crea tu diseño
+          <Link href="/disena" className="btn-primary hidden px-5 py-2.5 lg:inline-flex">
+            Diseña la tuya
           </Link>
           <button onClick={() => setOpen(true)} className="relative -mr-2 p-2" aria-label={`Carrito, ${count} artículos`}>
             <BagIcon className="h-6 w-6" />
@@ -67,7 +67,7 @@ export function Header() {
               </li>
             ))}
             <li className="pt-4">
-              <Link href="/personaliza" className="btn-primary w-full">Crea tu diseño</Link>
+              <Link href="/disena" className="btn-primary w-full">Diseña la tuya</Link>
             </li>
           </ul>
         </nav>

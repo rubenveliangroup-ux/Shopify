@@ -11,7 +11,7 @@ export function Footer() {
           <p className="mt-4 max-w-xs font-display text-2xl leading-snug">{site.tagline}</p>
           <div className="stitch mt-6 w-40 text-oro" />
         </div>
-        <FooterCol title="Comprar" links={[['/tienda', 'Colección'], ['/personaliza', 'Personaliza tu prenda'], ['/#faq', 'Preguntas frecuentes']]} />
+        <FooterCol title="Comprar" links={[['/tienda', 'Colección'], ['/disena', 'Diseña tu prenda en 3D'], ['/personaliza', 'Te lo diseñamos nosotros'], ['/#faq', 'Preguntas frecuentes']]} />
         <FooterCol title="Marcas" links={[['/marcas', 'Diseño + producción'], ['/marcas#proceso', 'Proceso'], ['/marcas#brief', 'Pedir presupuesto']]} />
         <div>
           <p className="eyebrow text-lino/60">Contacto</p>

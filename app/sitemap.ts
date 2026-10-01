@@ -6,6 +6,6 @@ export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const products = await getProducts({ first: 250 });
-  const pages = ['', '/tienda', '/personaliza', '/marcas'].map((p) => ({ url: `${siteUrl}${p}`, lastModified: new Date() }));
+  const pages = ['', '/tienda', '/disena', '/personaliza', '/marcas'].map((p) => ({ url: `${siteUrl}${p}`, lastModified: new Date() }));
   return [...pages, ...products.map((p) => ({ url: `${siteUrl}/producto/${p.handle}`, lastModified: new Date(p.updatedAt) }))];
 }

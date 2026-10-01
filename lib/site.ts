@@ -10,7 +10,7 @@ export const site = {
   productionDays: '7–10',
   nav: [
     { href: '/tienda', label: 'Colección' },
-    { href: '/personaliza', label: 'Personaliza' },
+    { href: '/disena', label: 'Diseña en 3D' },
     { href: '/marcas', label: 'Para marcas' },
     { href: '/#proceso', label: 'Cómo funciona' }
   ]

@@ -9,6 +9,7 @@ BR tiene **dos embudos** con economías distintas, y la web los separa desde el 
 | Embudo | Cliente | Conversión | Dónde vive |
 |---|---|---|---|
 | **Colección** | Particular, compra impulsiva/regalo | Añadir al carrito → Shopify Checkout | `/tienda`, `/producto/[handle]` |
+| **Diseña en 3D** | Particular que quiere crear su prenda | Diseño en el estudio → boceto gratis → pedido | `/disena` |
 | **Personaliza** | Particular con idea propia | Brief + archivos → boceto gratis → pedido | `/personaliza` |
 | **Marcas** | Marca, emprendedor, empresa | Brief B2B → propuesta + presupuesto | `/marcas` |
 
@@ -40,6 +41,17 @@ components/                UI (cart/, product/, brief-form, faq…)
 lib/shopify/               Cliente, queries, fragments, tipos, fallback
 lib/content.ts, site.ts    Copy y datos de marca editables
 ```
+
+## 2b. Estudio de diseño 3D (`/disena`)
+
+Botón principal del hero. El cliente crea su diseño y lo ve sobre la prenda antes de pedir el boceto.
+
+- **Editor 2D** (`components/studio/design-editor.tsx`, Fabric.js): subir imagen (o arrastrar), texto con 4 tipografías, dibujo a mano, 12 colores de hilo, mover/escalar/rotar, deshacer. El diseño se guarda en el navegador (localStorage) para no perderlo al recargar.
+- **Vista 3D** (`components/studio/garment-3d.tsx`, three.js + react-three-fiber): prenda procedural (sudadera, hoodie, camiseta) sin modelos externos; el diseño se proyecta como *decal* en pecho, centro o espalda, con tamaño ajustable y 7 colores de tejido.
+- **Efecto bordado** (`embroidery.ts`): puntadas de satén y relieve simulados sobre la textura.
+- **Envío**: genera `diseno.png` (alta resolución), `vista-3d.jpg` y adjunta la imagen original, y los manda a `/api/brief` con prenda, color, posición, tallas y notas.
+- Se carga solo en cliente (`next/dynamic`, `ssr: false`), así que no pesa en el resto de páginas.
+- Nota de despliegue: en Vercel el cuerpo de una petición está limitado a ~4,5 MB; si los clientes suben imágenes muy pesadas, mover la subida a almacenamiento directo (p. ej. Vercel Blob o Shopify Files).
 
 ## 3. Psicología del color
 
@@ -75,7 +87,7 @@ Estado de la tienda (01/10/2026): 6 sudaderas a 49,90 €.
 
 1. ✅ **Tallas**: opción *Talla* S, M, L, XL y XXL creada en las 6 sudaderas (30 variantes, 49,90 €).
 2. ✅ **Venta bajo pedido**: todas las variantes con "Seguir vendiendo sin stock" (inventario 0, producción bajo pedido).
-3. **Descripciones y SEO** por producto (la web usa `description` y `seo`).
+3. ✅ **Descripciones y SEO** redactados en las 6 sudaderas (+ tipo de producto, etiquetas y proveedor "BR").
 4. **Fotos reales** de prenda y primer plano del bordado (varias por producto: la galería y el hover las aprovechan).
 5. **Reseñas reales** (Judge.me / Okendo) — no se han inventado testimonios.
 6. Revisar y ajustar las cifras de negocio en `lib/site.ts` y `lib/content.ts` (plazos, mínimo 25 uds., umbral de envío, email).

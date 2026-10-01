@@ -63,7 +63,7 @@ export function CartDrawer() {
               <BagIcon className="h-10 w-10 text-tinta-300" />
               <p className="font-display text-lg">Aún no hay nada bordado aquí</p>
               <Link href="/tienda" onClick={() => setOpen(false)} className="btn-dark">Ver la colección</Link>
-              <Link href="/personaliza" onClick={() => setOpen(false)} className="text-sm underline underline-offset-4">o crea tu propio diseño</Link>
+              <Link href="/disena" onClick={() => setOpen(false)} className="text-sm underline underline-offset-4">o crea tu propio diseño</Link>
             </div>
           ) : (
             <ul className="divide-y divide-tinta/10">
