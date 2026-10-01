@@ -1,5 +1,4 @@
 export type GarmentType = 'sudadera' | 'hoodie' | 'camiseta';
-export type Placement = 'pecho' | 'centro' | 'espalda';
 
 export const garments: { id: GarmentType; label: string }[] = [
   { id: 'sudadera', label: 'Sudadera' },
@@ -23,18 +22,23 @@ export const threadColors = [
   '#1e3a5f', '#6aa6d8', '#d9849b', '#7a3e8e', '#8b5a2b', '#a8a8a8'
 ];
 
-export const placements: { id: Placement; label: string; hint: string }[] = [
-  { id: 'pecho', label: 'Pecho', hint: 'Pequeño, lado del corazón' },
-  { id: 'centro', label: 'Centro', hint: 'Grande, delantero' },
-  { id: 'espalda', label: 'Espalda', hint: 'Grande, trasero' }
+export type Side = 'delante' | 'detras';
+export const sides: { id: Side; label: string }[] = [
+  { id: 'delante', label: 'Delante' },
+  { id: 'detras', label: 'Detrás' }
 ];
 
-/** Tamaño base del bordado (unidades de escena ≈ metros) y posición sobre el torso. */
-export const placementTransform: Record<Placement, { pos: [number, number, number]; rot: [number, number, number]; size: number }> = {
-  pecho: { pos: [0.24, 0.3, 0.31], rot: [0, 0, 0], size: 0.26 },
-  centro: { pos: [0, 0.12, 0.34], rot: [0, 0, 0], size: 0.62 },
-  espalda: { pos: [0, 0.14, -0.34], rot: [0, Math.PI, 0], size: 0.7 }
-};
+/** Perfil del torso (radio, altura) en unidades de escena; lo comparten el modelo 3D y la silueta 2D. */
+export const TORSO_PROFILE: [number, number][] = [
+  [0.0, -0.78], [0.6, -0.78], [0.63, -0.6], [0.65, -0.2], [0.67, 0.2], [0.68, 0.45],
+  [0.62, 0.58], [0.48, 0.67], [0.3, 0.72], [0.2, 0.74], [0.0, 0.74]
+];
+export const TORSO_DEPTH = 0.5;
 
+/** Zona del torso que cubre cada lienzo (cuadrado, unidades de escena). */
+export const PANEL = { centerY: -0.02, size: 1.66 };
+/** Escala aproximada: 1,36 u de ancho de pecho ≈ 61 cm (talla M). */
+export const CM_PER_UNIT = 45;
 export const EDITOR_SIZE = 600; // px internos del lienzo de edición
 export const TEXTURE_SIZE = 1024; // px de la textura que se proyecta en 3D
+export const CM_PER_PX = (PANEL.size * CM_PER_UNIT) / EDITOR_SIZE;

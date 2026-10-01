@@ -2,18 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { CheckIcon, CloseIcon } from '../icons';
+import type { CheckoutProps } from './design-studio';
 
-type Props = {
-  onClose: () => void;
-  getFiles: () => Promise<File[]>;
-  isEmpty: () => boolean;
-  summary: { prenda: string; color: string; ubicacion: string; tamano: string };
-};
-
-export function SendDesign({ onClose, getFiles, isEmpty, summary }: Props) {
+export function SendDesign({ onClose, getAttachments, details, prenda, ubicacion, color, blockedReason }: CheckoutProps) {
   const [status, setStatus] = useState<'idle' | 'sending' | 'done'>('idle');
   const [message, setMessage] = useState<string | null>(null);
-  const empty = isEmpty();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -35,21 +28,21 @@ export function SendDesign({ onClose, getFiles, isEmpty, summary }: Props) {
     form.delete('notas');
     form.delete('tallas');
     form.set('tipo', 'particular');
-    form.set('prenda', summary.prenda);
-    form.set('color', summary.color);
-    form.set('ubicacion', summary.ubicacion);
+    form.set('prenda', prenda);
+    form.set('color', color);
+    form.set('ubicacion', ubicacion);
     form.set(
       'idea',
       [
-        'Diseño creado en el estudio online.',
-        `Prenda: ${summary.prenda} · Color: ${summary.color} · Posición: ${summary.ubicacion} · Tamaño: ${summary.tamano}`,
+        'Enviado desde el estudio online.',
+        ...details.map(([k, v]) => `${k}: ${v}`),
         tallas && `Tallas: ${tallas}`,
         notas && `Notas: ${notas}`
       ]
         .filter(Boolean)
         .join('\n')
     );
-    (await getFiles()).forEach((f) => form.append('archivos', f, f.name));
+    (await getAttachments()).forEach(({ file }) => form.append('archivos', file, file.name));
 
     try {
       const res = await fetch('/api/brief', { method: 'POST', body: form });
@@ -87,15 +80,16 @@ export function SendDesign({ onClose, getFiles, isEmpty, summary }: Props) {
           <form onSubmit={onSubmit} className="space-y-4">
             <div>
               <h2 className="text-3xl">Pide tu boceto gratis</h2>
-              <p className="mt-1 text-sm text-tinta-700">
-                {{ sudadera: 'Sudadera', hoodie: 'Sudadera con capucha', camiseta: 'Camiseta' }[summary.prenda] ?? summary.prenda} · color {summary.color.toLowerCase()} · bordado en {summary.ubicacion}
-              </p>
+              <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                {details.map(([k, v]) => (
+                  <div key={k} className="contents">
+                    <dt className="text-tinta-500">{k}</dt>
+                    <dd>{v}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
-            {empty && (
-              <p className="rounded-xl bg-oro-100 px-4 py-3 text-sm">
-                Tu lienzo está vacío. Puedes enviarlo igualmente y contarnos la idea en las notas.
-              </p>
-            )}
+            {blockedReason && <p className="rounded-xl bg-oro-100 px-4 py-3 text-sm">{blockedReason}</p>}
             <input type="text" name="empresa_web" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden />
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
@@ -128,10 +122,10 @@ export function SendDesign({ onClose, getFiles, isEmpty, summary }: Props) {
               Acepto que BR use estos datos y mi diseño para responder a mi solicitud.
             </label>
             {message && <p className="rounded-xl bg-hilo-100 px-4 py-3 text-sm text-hilo-600" role="alert">{message}</p>}
-            <button type="submit" disabled={status === 'sending'} className="btn-primary w-full py-4 text-base">
+            <button type="submit" disabled={status === 'sending' || Boolean(blockedReason)} className="btn-primary w-full py-4 text-base">
               {status === 'sending' ? 'Enviando…' : 'Enviar mi diseño'}
             </button>
-            <p className="text-center text-xs text-tinta-500">Adjuntamos tu diseño y una captura de la vista 3D.</p>
+            <p className="text-center text-xs text-tinta-500">Adjuntamos tus archivos y especificaciones.</p>
           </form>
         )}
       </div>

@@ -1,25 +1,28 @@
 'use client';
 
-import { Canvas, FabricImage, IText, PencilBrush, type FabricObject } from 'fabric';
+import { Canvas, FabricImage, IText, PencilBrush, Point, type FabricObject } from 'fabric';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { UploadIcon } from '../icons';
-import { EDITOR_SIZE, threadColors } from './config';
+import { CM_PER_PX, EDITOR_SIZE, threadColors, type Side } from './config';
+import { GarmentSilhouette } from './silhouette';
 
 export type EditorHandle = {
   /** Renderiza el diseño (sin controles) sobre un canvas del tamaño pedido. */
   renderTo: (target: HTMLCanvasElement) => void;
   exportPng: () => Promise<Blob | null>;
   isEmpty: () => boolean;
+  /** Medidas aproximadas (cm) del conjunto del diseño, o null si está vacío. */
+  getSize: () => { w: number; h: number } | null;
 };
 
 type Props = {
-  background: string;
+  side: Side;
+  garmentColor: string;
   onChange: () => void;
   onUpload: (file: File) => void;
 };
 
-const STORAGE_KEY = 'br-studio-design';
 
 const fonts = [
   { label: 'Serif', cssVar: '--font-display', weight: '600' },
@@ -33,7 +36,8 @@ function resolveFont(cssVar: string, scope?: Element | null) {
   return v || 'sans-serif';
 }
 
-export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEditor({ background, onChange, onUpload }, ref) {
+export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEditor({ side, garmentColor, onChange, onUpload }, ref) {
+  const STORAGE_KEY = `br-studio-${side}`;
   const host = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -50,6 +54,7 @@ export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEdito
   const [selected, setSelected] = useState<FabricObject | null>(null);
   const [count, setCount] = useState(0);
   const [canUndo, setCanUndo] = useState(false);
+  const [dims, setDims] = useState<string | null>(null);
 
   const snapshot = useCallback(() => {
     const c = fc.current;
@@ -64,7 +69,7 @@ export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEdito
     } catch {
       /* almacenamiento lleno o bloqueado: no es crítico */
     }
-  }, []);
+  }, [STORAGE_KEY]);
 
   useEffect(() => {
     // Fabric manipula el DOM del canvas: lo creamos fuera de React para evitar conflictos.
@@ -94,9 +99,24 @@ export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEdito
     c.on('object:added', snapshot);
     c.on('object:modified', snapshot);
     c.on('object:removed', snapshot);
-    c.on('selection:created', (e) => setSelected(e.selected?.[0] ?? null));
-    c.on('selection:updated', (e) => setSelected(e.selected?.[0] ?? null));
-    c.on('selection:cleared', () => setSelected(null));
+    const measure = () => {
+      const o = c.getActiveObject();
+      setDims(o ? `${Math.round(o.getScaledWidth() * CM_PER_PX)} × ${Math.round(o.getScaledHeight() * CM_PER_PX)} cm` : null);
+    };
+    c.on('selection:created', (e) => {
+      setSelected(e.selected?.[0] ?? null);
+      measure();
+    });
+    c.on('selection:updated', (e) => {
+      setSelected(e.selected?.[0] ?? null);
+      measure();
+    });
+    c.on('selection:cleared', () => {
+      setSelected(null);
+      setDims(null);
+    });
+    c.on('object:scaling', measure);
+    c.on('object:modified', measure);
 
     // Recuperar el último diseño de este navegador
     let saved: string | null = null;
@@ -141,7 +161,7 @@ export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEdito
         el.remove();
       });
     };
-  }, [snapshot]);
+  }, [snapshot, STORAGE_KEY]);
 
   // Modo dibujo
   useEffect(() => {
@@ -185,14 +205,26 @@ export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEdito
       }
       return (await fetch(url)).blob();
     },
-    isEmpty: () => (fc.current?.getObjects().length ?? 0) === 0
+    isEmpty: () => (fc.current?.getObjects().length ?? 0) === 0,
+    getSize() {
+      const objs = fc.current?.getObjects() ?? [];
+      if (!objs.length) return null;
+      const rects = objs.map((o) => o.getBoundingRect());
+      const l = Math.min(...rects.map((r) => r.left));
+      const t = Math.min(...rects.map((r) => r.top));
+      const r = Math.max(...rects.map((x) => x.left + x.width));
+      const b = Math.max(...rects.map((x) => x.top + x.height));
+      return { w: Math.round((r - l) * CM_PER_PX), h: Math.round((b - t) * CM_PER_PX) };
+    }
   }));
 
   function add(obj: FabricObject) {
     const c = fc.current!;
     setMode('select');
     c.add(obj);
-    c.centerObject(obj);
+    // Por defecto, a la altura del pecho y centrado
+    obj.setPositionByOrigin(new Point(EDITOR_SIZE / 2, EDITOR_SIZE * 0.36), 'center', 'center');
+    obj.setCoords();
     c.setActiveObject(obj);
     c.requestRenderAll();
   }
@@ -206,7 +238,7 @@ export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEdito
       r.readAsDataURL(file);
     });
     const img = await FabricImage.fromURL(url);
-    const max = EDITOR_SIZE * 0.7;
+    const max = EDITOR_SIZE * 0.28;
     img.scale(Math.min(max / img.width, max / img.height, 1));
     add(img);
   }
@@ -301,8 +333,7 @@ export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEdito
 
       {/* Lienzo */}
       <div
-        className="relative mt-4 aspect-square w-full overflow-hidden rounded-2xl ring-1 ring-tinta/10"
-        style={{ background }}
+        className="relative mt-4 aspect-square w-full overflow-hidden rounded-2xl bg-lino-200 ring-1 ring-tinta/10"
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault();
@@ -310,18 +341,24 @@ export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEdito
           if (f) addImage(f);
         }}
       >
-        <div className="pointer-events-none absolute inset-3 rounded-xl border border-dashed border-white/40 mix-blend-difference" />
+        <GarmentSilhouette color={garmentColor} side={side} />
         <div ref={host} className="absolute inset-0" />
         {count === 0 && (
           <div className="pointer-events-none absolute inset-0 grid place-items-center p-8 text-center">
-            <p className="text-sm text-white/70 mix-blend-difference">
+            <p className="rounded-xl bg-lino-100/85 px-4 py-3 text-sm text-tinta-700">
               Arrastra aquí tu dibujo o foto,
               <br />
-              escribe un texto o dibuja a mano
+              escribe un texto o dibuja a mano.
+              <br />
+              <span className="text-xs text-tinta-500">Muévelo y escálalo donde quieras de la prenda.</span>
             </p>
           </div>
         )}
       </div>
+
+      <p className="mt-2 h-5 text-xs text-tinta-500">
+        {dims ? <>Tamaño de la selección: <strong className="text-tinta">≈ {dims}</strong> (talla M)</> : 'Selecciona un elemento para moverlo, girarlo o cambiar su tamaño.'}
+      </p>
 
       {/* Color de hilo */}
       <div className="mt-4">
@@ -366,6 +403,21 @@ export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEdito
       )}
 
       <div className="mt-4 flex flex-wrap gap-2 text-sm">
+        <button
+          onClick={() => {
+            const c = fc.current;
+            const o = c?.getActiveObject();
+            if (!c || !o) return;
+            c.centerObjectH(o);
+            o.setCoords();
+            c.requestRenderAll();
+            snapshot();
+          }}
+          disabled={!selected}
+          className="rounded-full border border-tinta/15 px-4 py-1.5 disabled:opacity-40"
+        >
+          ↔ Centrar
+        </button>
         <button onClick={undo} disabled={!canUndo} className="rounded-full border border-tinta/15 px-4 py-1.5 disabled:opacity-40">↶ Deshacer</button>
         <button onClick={removeSelected} disabled={!selected} className="rounded-full border border-tinta/15 px-4 py-1.5 disabled:opacity-40">Eliminar selección</button>
         <button onClick={clearAll} disabled={count === 0} className="rounded-full border border-tinta/15 px-4 py-1.5 disabled:opacity-40">Empezar de cero</button>

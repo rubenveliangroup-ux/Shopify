@@ -4,17 +4,26 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { cn } from '@/lib/utils';
 import { ArrowIcon, CheckIcon } from '../icons';
-import { fabricColors, garments, placements, TEXTURE_SIZE, type GarmentType, type Placement } from './config';
+import { fabricColors, garments, sides, TEXTURE_SIZE, type GarmentType, type Side } from './config';
 import { DesignEditor, type EditorHandle } from './design-editor';
 import { applyEmbroidery } from './embroidery';
 import { Garment3D, type Garment3DHandle } from './garment-3d';
+import { OwnDesignForm, type OwnDesignData } from './own-design-form';
 import { SendDesign } from './send-design';
+
+export type Attachment = { label: string; file: File };
 
 export type CheckoutProps = {
   onClose: () => void;
-  getFiles: () => Promise<File[]>;
-  isEmpty: () => boolean;
-  summary: { prenda: GarmentType; color: string; ubicacion: Placement; tamano: string };
+  /** Archivos que se adjuntan (diseños, capturas 3D, imágenes originales). */
+  getAttachments: () => Promise<Attachment[]>;
+  /** Especificaciones legibles: se guardan como propiedades del pedido o en el brief. */
+  details: [string, string][];
+  prenda: GarmentType;
+  ubicacion: 'pecho' | 'centro' | 'espalda' | 'no-se';
+  color: string;
+  /** Si existe, el envío está bloqueado y se muestra este aviso. */
+  blockedReason?: string;
 };
 
 type StudioProps = {
@@ -31,6 +40,21 @@ type StudioProps = {
   renderCheckout?: (props: CheckoutProps) => React.ReactNode;
 };
 
+type Mode = 'disenar' | 'enviar';
+
+function useSideTexture() {
+  return useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = TEXTURE_SIZE;
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 4;
+    return { canvas, texture };
+  }, []);
+}
+
+const garmentLabel = (id: GarmentType) => garments.find((g) => g.id === id)?.label ?? id;
+
 export function DesignStudio({
   garmentIds,
   altHref = '/personaliza',
@@ -40,42 +64,113 @@ export function DesignStudio({
   renderCheckout = (p) => <SendDesign {...p} />
 }: StudioProps = {}) {
   const garmentList = garmentIds ? garments.filter((g) => garmentIds.includes(g.id)) : garments;
-  const editor = useRef<EditorHandle>(null);
+  const editors = { delante: useRef<EditorHandle>(null), detras: useRef<EditorHandle>(null) };
   const viewer = useRef<Garment3DHandle>(null);
 
+  const [mode, setMode] = useState<Mode>('disenar');
+  const [side, setSide] = useState<Side>('delante');
   const [type, setType] = useState<GarmentType>(garmentList[0]?.id ?? 'sudadera');
   const [color, setColor] = useState(fabricColors[0]);
-  const [placement, setPlacement] = useState<Placement>('centro');
-  const [scale, setScale] = useState(1);
   const [embroidery, setEmbroidery] = useState(true);
   const [uploads, setUploads] = useState<File[]>([]);
-  const [sending, setSending] = useState(false);
+  const [checkout, setCheckout] = useState<CheckoutProps | null>(null);
   const [mobileTab, setMobileTab] = useState<'diseno' | 'prenda'>('diseno');
 
-  // Canvas de textura que se proyecta sobre la prenda 3D
-  const { texCanvas, texture } = useMemo(() => {
-    const c = document.createElement('canvas');
-    c.width = c.height = TEXTURE_SIZE;
-    const t = new THREE.CanvasTexture(c);
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = 4;
-    return { texCanvas: c, texture: t };
-  }, []);
+  const textures = { delante: useSideTexture(), detras: useSideTexture() };
 
   const embroideryRef = useRef(embroidery);
   embroideryRef.current = embroidery;
 
-  const refreshTexture = useCallback(() => {
-    if (!editor.current) return;
-    editor.current.renderTo(texCanvas);
-    if (embroideryRef.current) applyEmbroidery(texCanvas);
-    texture.needsUpdate = true;
-  }, [texCanvas, texture]);
+  const refresh = useCallback(
+    (s: Side) => {
+      const ed = editors[s].current;
+      const { canvas, texture } = textures[s];
+      if (!ed) return;
+      ed.renderTo(canvas);
+      if (embroideryRef.current) applyEmbroidery(canvas);
+      texture.needsUpdate = true;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+  const refreshFront = useCallback(() => refresh('delante'), [refresh]);
+  const refreshBack = useCallback(() => refresh('detras'), [refresh]);
 
-  useEffect(refreshTexture, [embroidery, refreshTexture]);
-  useEffect(() => () => texture.dispose(), [texture]);
+  useEffect(() => {
+    refresh('delante');
+    refresh('detras');
+  }, [embroidery, refresh]);
+  useEffect(
+    () => () => {
+      textures.delante.texture.dispose();
+      textures.detras.texture.dispose();
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
 
-  const optionsPanel = (
+  const onUpload = useCallback((f: File) => setUploads((u) => [...u, f].slice(-2)), []);
+
+  /** Diseño hecho en el estudio → checkout */
+  function openStudioCheckout() {
+    const used = sides.filter((s) => !editors[s.id].current?.isEmpty());
+    const sizeOf = (s: Side) => {
+      const d = editors[s].current?.getSize();
+      return d ? `≈ ${d.w} × ${d.h} cm` : '';
+    };
+    const details: [string, string][] = [
+      ['Prenda', garmentLabel(type)],
+      ['Color de la prenda', color.name],
+      ['Bordado delante', used.some((s) => s.id === 'delante') ? `Sí (${sizeOf('delante')})` : 'No'],
+      ['Bordado detrás', used.some((s) => s.id === 'detras') ? `Sí (${sizeOf('detras')})` : 'No']
+    ];
+    setCheckout({
+      onClose: () => setCheckout(null),
+      details,
+      prenda: type,
+      color: color.name,
+      ubicacion: used.length === 1 && used[0].id === 'detras' ? 'espalda' : 'centro',
+      blockedReason: used.length ? undefined : 'Tu diseño está vacío: sube una imagen, escribe o dibuja delante o detrás.',
+      getAttachments: async () => {
+        const out: Attachment[] = [];
+        for (const s of used) {
+          const png = await editors[s.id].current?.exportPng();
+          if (png) out.push({ label: `Diseño ${s.label.toLowerCase()}`, file: new File([png], `diseno-${s.id}.png`, { type: 'image/png' }) });
+          const shot = viewer.current?.snapshot(s.id);
+          if (shot) {
+            const blob = await (await fetch(shot)).blob();
+            out.push({ label: `Vista 3D ${s.label.toLowerCase()}`, file: new File([blob], `vista-3d-${s.id}.jpg`, { type: 'image/jpeg' }) });
+          }
+        }
+        uploads.forEach((f, i) => out.push({ label: `Imagen original ${i + 1}`, file: f }));
+        return out;
+      }
+    });
+  }
+
+  /** Diseño propio enviado con especificaciones → checkout */
+  function openOwnDesignCheckout(d: OwnDesignData) {
+    const details: [string, string][] = [
+      ['Prenda', garmentLabel(type)],
+      ['Color de la prenda', d.color],
+      ['Lado', d.lado],
+      ...(d.posicionDelante ? ([['Posición delante', d.posicionDelante]] as [string, string][]) : []),
+      ...(d.posicionDetras ? ([['Posición detrás', d.posicionDetras]] as [string, string][]) : []),
+      ...(d.tamano ? ([['Tamaño', d.tamano]] as [string, string][]) : []),
+      ...(d.hilos ? ([['Colores de hilo', d.hilos]] as [string, string][]) : []),
+      ...(d.especificaciones ? ([['Especificaciones', d.especificaciones]] as [string, string][]) : [])
+    ];
+    setCheckout({
+      onClose: () => setCheckout(null),
+      details,
+      prenda: type,
+      color: d.color,
+      ubicacion: d.lado === 'Detrás' ? 'espalda' : d.lado === 'Delante' ? 'pecho' : 'no-se',
+      getAttachments: async () => d.files.map((f, i) => ({ label: `Diseño del cliente ${i + 1}`, file: f }))
+    });
+  }
+
+  const garmentOptions = (
     <div className="space-y-6">
       {garmentList.length > 1 && (
         <Option title="Prenda">
@@ -102,21 +197,6 @@ export function DesignStudio({
         </div>
       </Option>
 
-      <Option title="Posición del bordado">
-        <div className="grid grid-cols-3 gap-2">
-          {placements.map((p) => (
-            <Chip key={p.id} active={placement === p.id} onClick={() => setPlacement(p.id)}>
-              {p.label}
-              <span className="block text-[10px] font-normal opacity-70">{p.hint}</span>
-            </Chip>
-          ))}
-        </div>
-      </Option>
-
-      <Option title={`Tamaño: ${Math.round(scale * 100)}%`}>
-        <input type="range" min={0.5} max={1.3} step={0.05} value={scale} onChange={(e) => setScale(Number(e.target.value))} className="w-full accent-hilo" />
-      </Option>
-
       <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl bg-lino-100 px-4 py-3 ring-1 ring-tinta/10">
         <span>
           <span className="block text-sm font-medium">Efecto bordado</span>
@@ -127,29 +207,69 @@ export function DesignStudio({
     </div>
   );
 
+  const sideTabs = (
+    <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Lado de la prenda">
+      {sides.map((s) => (
+        <button
+          key={s.id}
+          role="tab"
+          aria-selected={side === s.id}
+          onClick={() => setSide(s.id)}
+          className={cn(
+            'rounded-2xl border px-3 py-2.5 text-sm font-semibold transition',
+            side === s.id ? 'border-tinta bg-tinta text-lino' : 'border-tinta/15 bg-lino-100 hover:border-tinta'
+          )}
+        >
+          {s.label}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="container-page pt-8">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <p className="eyebrow">Estudio de diseño</p>
           <h1 className="mt-2 text-4xl sm:text-5xl">Diseña tu prenda</h1>
-          <p className="mt-2 max-w-xl text-tinta-700">Sube tu dibujo o foto, escribe o dibuja a mano y míralo sobre la prenda en 3D. Nosotros lo convertimos en bordado.</p>
+          <p className="mt-2 max-w-xl text-tinta-700">
+            Crea tu diseño delante y detrás, colócalo donde quieras y míralo en 3D. O envíanos tu diseño con tus especificaciones.
+          </p>
         </div>
         <a href={altHref} className="text-sm underline underline-offset-4">¿Prefieres que lo diseñemos nosotros?</a>
       </div>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:gap-10">
+      {/* Modo: diseñar aquí o enviar diseño propio */}
+      <div className="mt-6 inline-grid w-full grid-cols-2 rounded-full bg-lino-200 p-1 text-sm font-medium sm:w-auto">
+        {([
+          ['disenar', 'Diséñalo aquí'],
+          ['enviar', 'Envíanos tu diseño']
+        ] as const).map(([id, label]) => (
+          <button key={id} onClick={() => setMode(id)} className={cn('rounded-full px-5 py-2', mode === id && 'bg-lino-100 shadow')}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className={cn('mt-6 grid gap-8 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:gap-10', mode !== 'disenar' && 'hidden')}>
         {/* Vista 3D: arriba en móvil, a la derecha en escritorio */}
         <div className="lg:order-2">
           <div className="sticky top-20 z-10 space-y-4">
             <div className="relative aspect-square max-h-[46vh] w-full overflow-hidden rounded-3xl ring-1 ring-tinta/10 lg:aspect-[4/3.4] lg:max-h-none">
-              <Garment3D ref={viewer} type={type} color={color.hex} placement={placement} scale={scale} texture={texture} />
+              <Garment3D ref={viewer} type={type} color={color.hex} view={side} front={textures.delante.texture} back={textures.detras.texture} />
+              <div className="absolute left-3 top-3 flex gap-1 rounded-full bg-lino-100/90 p-1 text-xs font-medium">
+                {sides.map((s) => (
+                  <button key={s.id} onClick={() => setSide(s.id)} className={cn('rounded-full px-3 py-1', side === s.id && 'bg-tinta text-lino')}>
+                    Ver {s.label.toLowerCase()}
+                  </button>
+                ))}
+              </div>
               <p className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-lino-100/90 px-3 py-1 text-xs text-tinta-700">
                 Arrastra para girar · zoom con 2 dedos
               </p>
             </div>
             <div className="hidden rounded-3xl bg-lino-100 p-5 ring-1 ring-tinta/10 lg:block">
-              <CtaBlock onSend={() => setSending(true)} items={[...highlights, priceNote]} label={ctaLabel} />
+              <CtaBlock onClick={openStudioCheckout} items={[...highlights, priceNote]} label={ctaLabel} />
             </div>
           </div>
         </div>
@@ -165,50 +285,39 @@ export function DesignStudio({
           </div>
 
           <div className={cn(mobileTab !== 'diseno' && 'hidden lg:block')}>
-            <DesignEditor
-              ref={editor}
-              background={color.hex}
-              onChange={refreshTexture}
-              onUpload={(f) => setUploads((u) => [...u, f].slice(-2))}
-            />
+            <div className="mb-4">{sideTabs}</div>
+            {sides.map((s) => (
+              <div key={s.id} className={cn(side !== s.id && 'hidden')}>
+                <DesignEditor
+                  ref={editors[s.id]}
+                  side={s.id}
+                  garmentColor={color.hex}
+                  onChange={s.id === 'delante' ? refreshFront : refreshBack}
+                  onUpload={onUpload}
+                />
+              </div>
+            ))}
           </div>
-          <div className={cn('lg:mt-10', mobileTab !== 'prenda' && 'hidden lg:block')}>
-            {optionsPanel}
-          </div>
+          <div className={cn('lg:mt-10', mobileTab !== 'prenda' && 'hidden lg:block')}>{garmentOptions}</div>
 
           <div className="mt-8 rounded-3xl bg-lino-100 p-5 ring-1 ring-tinta/10 lg:hidden">
-            <CtaBlock onSend={() => setSending(true)} items={[...highlights, priceNote]} label={ctaLabel} />
+            <CtaBlock onClick={openStudioCheckout} items={[...highlights, priceNote]} label={ctaLabel} />
           </div>
         </div>
       </div>
 
-      {sending &&
-        renderCheckout({
-          onClose: () => setSending(false),
-          getFiles: async () => {
-            const files: File[] = [];
-            const png = await editor.current?.exportPng();
-            if (png) files.push(new File([png], 'diseno.png', { type: 'image/png' }));
-            const shot = viewer.current?.snapshot();
-            if (shot) {
-              const blob = await (await fetch(shot)).blob();
-              files.push(new File([blob], 'vista-3d.jpg', { type: 'image/jpeg' }));
-            }
-            return [...files, ...uploads];
-          },
-          isEmpty: () => editor.current?.isEmpty() ?? true,
-          summary: {
-            prenda: type,
-            color: color.name,
-            ubicacion: placement,
-            tamano: `${Math.round(scale * 100)}%`
-          }
-        })}
+      {mode === 'enviar' && (
+        <div className="mt-6">
+          <OwnDesignForm defaultColor={color.name} ctaLabel={ctaLabel} onSubmit={openOwnDesignCheckout} />
+        </div>
+      )}
+
+      {checkout && renderCheckout(checkout)}
     </div>
   );
 }
 
-function CtaBlock({ onSend, items, label }: { onSend: () => void; items: string[]; label: string }) {
+function CtaBlock({ onClick, items, label }: { onClick: () => void; items: string[]; label: string }) {
   return (
     <div>
       <ul className="mb-4 space-y-1.5 text-sm text-tinta-700">
@@ -216,7 +325,7 @@ function CtaBlock({ onSend, items, label }: { onSend: () => void; items: string[
           <li key={t} className="flex items-center gap-2"><CheckIcon className="h-4 w-4 shrink-0 text-bosque" />{t}</li>
         ))}
       </ul>
-      <button onClick={onSend} className="btn-primary w-full py-4 text-base">
+      <button onClick={onClick} className="btn-primary w-full py-4 text-base">
         {label} <ArrowIcon className="h-4 w-4" />
       </button>
     </div>

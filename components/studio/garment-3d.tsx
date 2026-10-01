@@ -2,26 +2,22 @@
 
 import { ContactShadows, Decal, OrbitControls } from '@react-three/drei';
 import { Canvas, useThree } from '@react-three/fiber';
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { placementTransform, type GarmentType, type Placement } from './config';
+import { PANEL, TORSO_DEPTH, TORSO_PROFILE, type GarmentType, type Side } from './config';
 
-export type Garment3DHandle = { snapshot: () => string | null };
+export type Garment3DHandle = { snapshot: (side: Side) => string | null };
 
 type Props = {
   type: GarmentType;
   color: string;
-  placement: Placement;
-  scale: number;
-  texture: THREE.CanvasTexture;
+  /** Lado que se está editando: la cámara lo muestra. */
+  view: Side;
+  front: THREE.CanvasTexture;
+  back: THREE.CanvasTexture;
 };
 
-/** Perfil del torso (radio, altura) que se gira en torno al eje Y y se aplana en Z. */
-const TORSO_PROFILE: [number, number][] = [
-  [0.0, -0.78], [0.6, -0.78], [0.63, -0.6], [0.65, -0.2], [0.67, 0.2], [0.68, 0.45],
-  [0.62, 0.58], [0.48, 0.67], [0.3, 0.72], [0.2, 0.74], [0.0, 0.74]
-];
-const DEPTH = 0.5;
+const DEPTH = TORSO_DEPTH;
 
 function useKnitBump() {
   return useMemo(() => {
@@ -43,7 +39,7 @@ function useKnitBump() {
   }, []);
 }
 
-function Garment({ type, color, placement, scale, texture }: Props) {
+function Garment({ type, color, front, back }: Omit<Props, 'view'>) {
   const knit = useKnitBump();
   const torso = useMemo(() => {
     const g = new THREE.LatheGeometry(TORSO_PROFILE.map(([r, y]) => new THREE.Vector2(r, y)), 96);
@@ -61,25 +57,18 @@ function Garment({ type, color, placement, scale, texture }: Props) {
     return new THREE.MeshStandardMaterial({ color: c, roughness: 1, bumpMap: knit, bumpScale: 0.5 });
   }, [color, knit]);
 
-  const t = placementTransform[placement];
-  const s = t.size * scale;
   const long = type !== 'camiseta';
   const sleeveLen = long ? 1.15 : 0.38;
 
   return (
     <group position={[0, 0.05, 0]}>
       <mesh geometry={torso} material={fabric} castShadow>
-        <Decal position={t.pos} rotation={t.rot} scale={[s, s, 0.5]}>
-          <meshStandardMaterial
-            map={texture}
-            bumpMap={texture}
-            bumpScale={2}
-            transparent
-            roughness={0.55}
-            polygonOffset
-            polygonOffsetFactor={-4}
-            depthWrite={false}
-          />
+        {/* Cada lienzo cubre todo el panel del torso: el cliente coloca el diseño donde quiera */}
+        <Decal position={[0, PANEL.centerY, 0.2]} rotation={[0, 0, 0]} scale={[PANEL.size, PANEL.size, 0.42]}>
+          <DecalMaterial map={front} />
+        </Decal>
+        <Decal position={[0, PANEL.centerY, -0.2]} rotation={[0, Math.PI, 0]} scale={[PANEL.size, PANEL.size, 0.42]}>
+          <DecalMaterial map={back} />
         </Decal>
       </mesh>
 
@@ -124,14 +113,24 @@ function Garment({ type, color, placement, scale, texture }: Props) {
               <meshStandardMaterial color="#eeeeee" roughness={0.8} />
             </mesh>
           ))}
-          {placement !== 'centro' && (
-            <mesh position={[0, -0.45, 0.305]} scale={[1, 1, 0.12]} material={rib}>
-              <boxGeometry args={[0.7, 0.32, 0.4]} />
-            </mesh>
-          )}
         </>
       )}
     </group>
+  );
+}
+
+function DecalMaterial({ map }: { map: THREE.CanvasTexture }) {
+  return (
+    <meshStandardMaterial
+      map={map}
+      bumpMap={map}
+      bumpScale={2}
+      transparent
+      roughness={0.55}
+      polygonOffset
+      polygonOffsetFactor={-4}
+      depthWrite={false}
+    />
   );
 }
 
@@ -139,9 +138,17 @@ function Snapshotter({ handleRef }: { handleRef: React.MutableRefObject<Garment3
   const { gl, scene, camera } = useThree();
   useEffect(() => {
     handleRef.current = {
-      snapshot: () => {
+      snapshot: (side) => {
+        // Captura frontal o trasera sin perder el punto de vista del cliente
+        const pos = camera.position.clone();
+        camera.position.set(0, 0.1, side === 'detras' ? -4.2 : 4.2);
+        camera.lookAt(0, 0, 0);
         gl.render(scene, camera);
-        return gl.domElement.toDataURL('image/jpeg', 0.88);
+        const url = gl.domElement.toDataURL('image/jpeg', 0.88);
+        camera.position.copy(pos);
+        camera.lookAt(0, 0, 0);
+        gl.render(scene, camera);
+        return url;
       }
     };
   }, [gl, scene, camera, handleRef]);
@@ -150,9 +157,14 @@ function Snapshotter({ handleRef }: { handleRef: React.MutableRefObject<Garment3
 
 export const Garment3D = forwardRef<Garment3DHandle, Props>(function Garment3D(props, ref) {
   const handleRef = useMemo(() => ({ current: null as Garment3DHandle | null }), []);
-  useImperativeHandle(ref, () => ({ snapshot: () => handleRef.current?.snapshot() ?? null }), [handleRef]);
-  const back = props.placement === 'espalda';
+  useImperativeHandle(ref, () => ({ snapshot: (side) => handleRef.current?.snapshot(side) ?? null }), [handleRef]);
+  const { view, ...garment } = props;
+  const back = view === 'detras';
   const [spin, setSpin] = useState(true);
+  const firstView = useRef(view);
+  useEffect(() => {
+    if (view !== firstView.current) setSpin(false); // al cambiar de lado, se queda mirando ese lado
+  }, [view]);
 
   return (
     <Canvas
@@ -166,7 +178,7 @@ export const Garment3D = forwardRef<Garment3DHandle, Props>(function Garment3D(p
       <hemisphereLight args={['#ffffff', '#b9ad9a', 1.2]} />
       <directionalLight position={[2.5, 3, 4]} intensity={1.6} castShadow />
       <directionalLight position={[-3, 1, -3]} intensity={0.6} />
-      <Garment {...props} />
+      <Garment {...garment} />
       <ContactShadows position={[0, -1.05, 0]} opacity={0.35} scale={4} blur={2.4} far={2} />
       <OrbitControls
         makeDefault
@@ -185,7 +197,7 @@ export const Garment3D = forwardRef<Garment3DHandle, Props>(function Garment3D(p
   );
 });
 
-/** Al cambiar a espalda/delantero, gira la cámara para mostrar el bordado. */
+/** Al cambiar entre delante y detrás, gira la cámara hacia ese lado. */
 function CameraFacing({ back }: { back: boolean }) {
   const { camera } = useThree();
   useEffect(() => {
