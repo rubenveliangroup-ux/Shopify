@@ -1,13 +1,58 @@
 import { createRoot } from 'react-dom/client';
 import { DesignStudio } from '@/components/studio/design-studio';
+import { DEFAULT_EMBROIDERY_CONFIG, type EmbroideryConfig, type EmbroideryPricing, type PricedVariant } from '@/components/studio/embroidery-pricing';
 import { ShopifyAddToCart, type ShopifyVariant } from './add-to-cart';
 
 type Config = {
   variants: ShopifyVariant[];
   price: string;
+  priceValue: number;
   cartAddUrl: string;
+  cartUrl: string;
   altHref: string;
+  /** Ajustes de la calculadora (editor de temas) + variantes de los productos de extra. */
+  embroidery?: Partial<EmbroideryConfig> & {
+    enabled?: boolean;
+    tramosTexto?: string;
+    tierVariants?: PricedVariant[];
+    colorVariant?: PricedVariant | null;
+  };
 };
+
+function pricingFrom(c: Config['embroidery']): EmbroideryPricing | undefined {
+  if (!c || c.enabled === false) return undefined;
+  const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+  const D = DEFAULT_EMBROIDERY_CONFIG;
+  const tramos = (c.tramosTexto ?? '')
+    .split(/[,;\s]+/)
+    .map((t) => Number(t.replace(/\./g, '')))
+    .filter((n) => n > 0);
+  const pricing: EmbroideryPricing = {
+    puntadasPorCm2: num(c.puntadasPorCm2, D.puntadasPorCm2),
+    puntadasPorCmBorde: num(c.puntadasPorCmBorde, D.puntadasPorCmBorde),
+    margenSeguridad: num(c.margenSeguridad, D.margenSeguridad),
+    costePorMil: num(c.costePorMil, D.costePorMil),
+    multiplicadorMargen: num(c.multiplicadorMargen, D.multiplicadorMargen),
+    cuotaFija: num(c.cuotaFija, D.cuotaFija),
+    precioColorAdicional: num(c.precioColorAdicional, D.precioColorAdicional),
+    maxColores: num(c.maxColores, D.maxColores),
+    tramos: tramos.length ? tramos : D.tramos,
+    umbralColor: num(c.umbralColor, D.umbralColor),
+    grosorMinimoMm: num(c.grosorMinimoMm, D.grosorMinimoMm),
+    tamanoMinimoCm: num(c.tamanoMinimoCm, D.tamanoMinimoCm),
+    tierVariants: c.tierVariants ?? [],
+    colorVariant: c.colorVariant ?? null
+  };
+  // Sin los productos de extra conectados (una variante por tramo + color adicional) no se
+  // muestra precio, porque no se podría cobrar. Excepción: el modo calibración (?calibrar=1).
+  const calibrating = new URLSearchParams(window.location.search).has('calibrar');
+  const ready = pricing.tierVariants.length >= pricing.tramos.length && pricing.colorVariant !== null;
+  if (!ready && !calibrating) {
+    console.warn('[br-studio] Calculadora desactivada: conecta "Extra de bordado" (una variante por tramo) y "Color adicional de bordado" en el editor de temas.');
+    return undefined;
+  }
+  return pricing;
+}
 
 function mount() {
   const root = document.getElementById('br-studio');
@@ -24,11 +69,19 @@ function mount() {
     <DesignStudio
       garmentIds={['sudadera']}
       altHref={config.altHref}
-      priceNote={`Sudadera personalizada: ${config.price}`}
+      priceNote={`Sudadera personalizada: ${config.price} + bordado`}
       ctaLabel="Elegir talla y añadir al carrito"
       highlights={['Te enviamos el boceto para aprobar antes de bordar', `Producción en 7–10 días laborables`]}
+      pricing={pricingFrom(config.embroidery)}
       renderCheckout={(p) => (
-        <ShopifyAddToCart {...p} variants={config.variants} price={config.price} cartAddUrl={config.cartAddUrl} />
+        <ShopifyAddToCart
+          {...p}
+          variants={config.variants}
+          price={config.price}
+          priceValue={config.priceValue}
+          cartAddUrl={config.cartAddUrl}
+          cartUrl={config.cartUrl || '/cart'}
+        />
       )}
     />
   );

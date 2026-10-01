@@ -9,6 +9,10 @@ Versión del estudio (`components/studio`) incrustada en el tema Horizon, sin se
 - `sections/br-design-studio.liquid` + `templates/page.disena.json` → página "Diseña tu prenda".
 - `assets/` es el resultado de `npm run build:theme` (no editar a mano).
 
+## Calculadora de bordado
+
+Ver [CALCULADORA.md](./CALCULADORA.md): estimación de puntadas y colores, tramos de precio, productos ocultos y calibración.
+
 ## Actualizar el estudio en Shopify
 
 1. `npm run build:theme` y commit de `shopify-theme/assets/`.

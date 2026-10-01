@@ -5,6 +5,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { cn } from '@/lib/utils';
 import { UploadIcon } from '../icons';
 import { CM_PER_PX, EDITOR_SIZE, threadColors, type Side } from './config';
+import { removeWhiteBackground } from './embroidery-estimate';
 import { GarmentSilhouette } from './silhouette';
 
 export type EditorHandle = {
@@ -14,6 +15,11 @@ export type EditorHandle = {
   isEmpty: () => boolean;
   /** Medidas aproximadas (cm) del conjunto del diseño, o null si está vacío. */
   getSize: () => { w: number; h: number } | null;
+  /**
+   * Diseño recortado a su contenido, a resolución de análisis (≈ cmPerPx por píxel),
+   * con el fondo blanco de las imágenes subidas eliminado. Para la calculadora de bordado.
+   */
+  renderForAnalysis: (cmPerPx: number, maxPx: number) => { canvas: HTMLCanvasElement; cmPerPx: number; whiteRemoved: boolean } | null;
 };
 
 type Props = {
@@ -206,6 +212,37 @@ export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEdito
       return (await fetch(url)).blob();
     },
     isEmpty: () => (fc.current?.getObjects().length ?? 0) === 0,
+    renderForAnalysis(targetCmPerPx, maxPx) {
+      const c = fc.current;
+      const objs = c?.getObjects() ?? [];
+      if (!c || !objs.length) return null;
+      const rects = objs.map((o) => o.getBoundingRect());
+      const left = Math.min(...rects.map((r) => r.left));
+      const top = Math.min(...rects.map((r) => r.top));
+      const w = Math.max(...rects.map((r) => r.left + r.width)) - left;
+      const h = Math.max(...rects.map((r) => r.top + r.height)) - top;
+      if (w <= 0 || h <= 0) return null;
+      // px del editor → px de análisis
+      let scale = CM_PER_PX / targetCmPerPx;
+      if (Math.max(w, h) * scale > maxPx) scale = maxPx / Math.max(w, h);
+      const out = document.createElement('canvas');
+      out.width = Math.ceil(w * scale) + 2;
+      out.height = Math.ceil(h * scale) + 2;
+      const ctx = out.getContext('2d', { willReadFrequently: true })!;
+      let whiteRemoved = false;
+      exporting.current = true;
+      try {
+        objs.forEach((o, i) => {
+          if (!o.visible) return;
+          const oc = o.toCanvasElement({ multiplier: scale });
+          if (o instanceof FabricImage && removeWhiteBackground(oc)) whiteRemoved = true;
+          ctx.drawImage(oc, (rects[i].left - left) * scale + 1, (rects[i].top - top) * scale + 1);
+        });
+      } finally {
+        exporting.current = false;
+      }
+      return { canvas: out, cmPerPx: CM_PER_PX / scale, whiteRemoved };
+    },
     getSize() {
       const objs = fc.current?.getObjects() ?? [];
       if (!objs.length) return null;

@@ -6,6 +6,9 @@
 {%- endcomment -%}
 {%- liquid
   assign product = section.settings.product
+  assign extra_product = section.settings.extra_product
+  assign color_product = section.settings.color_product
+  assign color_variant = color_product.selected_or_first_available_variant
 -%}
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,7 +20,27 @@
   <script type="application/json" id="br-studio-config">
     {
       "price": {{ product.price | money | json }},
+      "priceValue": {{ product.price | divided_by: 100.0 | json }},
       "cartAddUrl": {{ routes.cart_add_url | json }},
+      "cartUrl": {{ routes.cart_url | json }},
+      "embroidery": {
+        "enabled": {{ section.settings.calc_enabled | json }},
+        "puntadasPorCm2": {{ section.settings.puntadas_por_cm2 | json }},
+        "puntadasPorCmBorde": {{ section.settings.puntadas_por_cm_borde | json }},
+        "margenSeguridad": {{ section.settings.margen_seguridad | divided_by: 100.0 | json }},
+        "costePorMil": {{ section.settings.coste_por_mil | json }},
+        "multiplicadorMargen": {{ section.settings.multiplicador_margen | json }},
+        "cuotaFija": {{ section.settings.cuota_fija | json }},
+        "precioColorAdicional": {{ section.settings.precio_color_adicional | json }},
+        "maxColores": {{ section.settings.max_colores | json }},
+        "tramosTexto": {{ section.settings.tramos | json }},
+        "tierVariants": [
+          {%- for v in extra_product.variants -%}
+            {"id": {{ v.id }}, "title": {{ v.title | json }}, "price": {{ v.price | divided_by: 100.0 | json }}, "available": {{ v.available | json }}}{% unless forloop.last %},{% endunless %}
+          {%- endfor -%}
+        ],
+        "colorVariant": {%- if color_variant -%}{"id": {{ color_variant.id }}, "title": {{ color_variant.title | json }}, "price": {{ color_variant.price | divided_by: 100.0 | json }}, "available": {{ color_variant.available | json }}}{%- else -%}null{%- endif -%}
+      },
       "altHref": {{ section.settings.alt_link | default: '/pages/disenos-a-medida' | json }},
       "variants": [
         {%- for variant in product.variants -%}
@@ -51,6 +74,21 @@
       "id": "alt_link",
       "label": "Enlace \"¿Prefieres que lo diseñemos nosotros?\""
     },
+    { "type": "header", "content": "Calculadora de bordado" },
+    { "type": "paragraph", "content": "Los precios que paga el cliente son los de las variantes de \"Extra de bordado\" y \"Color adicional de bordado\". Mantén estos ajustes iguales a esos precios: abre la página con ?calibrar=1 para comprobarlo." },
+    { "type": "checkbox", "id": "calc_enabled", "label": "Activar calculadora de bordado", "default": true },
+    { "type": "product", "id": "extra_product", "label": "Producto \"Extra de bordado\"", "info": "Una variante por tramo, en el mismo orden que los tramos." },
+    { "type": "product", "id": "color_product", "label": "Producto \"Color adicional de bordado\"" },
+    { "type": "number", "id": "puntadas_por_cm2", "label": "Puntadas por cm² (calibrar)", "default": 150 },
+    { "type": "number", "id": "puntadas_por_cm_borde", "label": "Puntadas extra por cm de contorno", "default": 5 },
+    { "type": "range", "id": "margen_seguridad", "label": "Margen de seguridad sobre puntadas", "min": 0, "max": 50, "step": 1, "unit": "%", "default": 10 },
+    { "type": "text", "id": "tramos", "label": "Topes de los tramos (puntadas)", "default": "5000, 10000, 15000, 20000", "info": "Por encima del último: diseño sujeto a presupuesto." },
+    { "type": "number", "id": "coste_por_mil", "label": "Coste por 1.000 puntadas (€)", "default": 0.75 },
+    { "type": "number", "id": "multiplicador_margen", "label": "Multiplicador de margen", "default": 1 },
+    { "type": "number", "id": "cuota_fija", "label": "Cuota fija de montaje y digitalización (€)", "default": 5 },
+    { "type": "number", "id": "precio_color_adicional", "label": "Precio por color adicional (€)", "default": 1 },
+    { "type": "number", "id": "max_colores", "label": "Máximo de colores (agujas)", "default": 12 },
+    { "type": "header", "content": "Márgenes" },
     { "type": "range", "id": "padding_top", "label": "Margen superior", "min": 0, "max": 100, "step": 4, "unit": "px", "default": 24 },
     { "type": "range", "id": "padding_bottom", "label": "Margen inferior", "min": 0, "max": 100, "step": 4, "unit": "px", "default": 48 }
   ],
