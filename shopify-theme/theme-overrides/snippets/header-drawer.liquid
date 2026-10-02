@@ -109,7 +109,13 @@
           {% if linklist.levels < 3 %}
             {% assign first_accordion_open = false %}
             {% assign animation_index = 0 %}
+            {%- assign br_extras = false -%}
             {%- for link in linklist.links -%}
+              {%- if br_extras == false and link.url contains '/pages/contact' -%}
+                {% render 'br-nav-extra', linklist: linklist, variant: 'drawer', animation_index: animation_index %}
+                {%- assign br_extras = true -%}
+                {%- assign animation_index = animation_index | plus: 2 -%}
+              {%- endif -%}
               {% assign animation_index = animation_index | plus: 1 %}
               <li
                 style="--menu-drawer-animation-index: {{ animation_index }};"
@@ -262,7 +268,13 @@
               Handle menus with 3 levels of links
             {%- endcomment -%}
             {% assign animation_index = 0 %}
+            {%- assign br_extras = false -%}
             {%- for link in linklist.links -%}
+              {%- if br_extras == false and link.url contains '/pages/contact' -%}
+                {% render 'br-nav-extra', linklist: linklist, variant: 'drawer', animation_index: animation_index %}
+                {%- assign br_extras = true -%}
+                {%- assign animation_index = animation_index | plus: 2 -%}
+              {%- endif -%}
               {% assign animation_index = animation_index | plus: 1 %}
               <li
                 class="menu-drawer__list-item"
@@ -587,8 +599,8 @@
               </li>
             {%- endfor -%}
           {% endif %}
-          {%- comment -%} BR: respaldo si el menú no trae Diseña tu prenda / Impulsa tu marca {%- endcomment -%}
-          {% render 'br-nav-extra', linklist: linklist, variant: 'drawer', animation_index: animation_index %}
+          {%- comment -%} BR: respaldo si el menú no trae Diseña tu prenda / Impulsa tu marca: antes de Contacto (arriba) o aquí al final {%- endcomment -%}
+          {%- unless br_extras -%}{% render 'br-nav-extra', linklist: linklist, variant: 'drawer', animation_index: animation_index %}{%- endunless -%}
         </ul>
         {% render 'br-nav-extra', variant: 'styles' %}
       </nav>

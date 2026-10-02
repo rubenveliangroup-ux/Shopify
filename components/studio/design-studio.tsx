@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ArrowIcon } from '../icons';
 import { ColorPicker } from '../color/ColorPicker';
+import { OptionCard } from '../forms/option-card';
 import { AVISO_COLOR_LIBRE, COLORES_HABITUALES, COLORES_STOCK, MODO_COLOR_PRENDA, type GarmentColorMode, type NamedColor } from '../color/color-config';
 import { DEFAULT_THREADS, loadThreadPalette, type Thread } from '../color/threads';
-import { AVISO_3D, CASILLA_3D } from './aviso';
+import { AVISO_3D, CASILLA_3D, CASILLA_3D_CORTA } from './aviso';
 import { garments, sides, TEXTURE_SIZE, type GarmentType, type Side } from './config';
 import { DesignEditor, type EditorHandle } from './design-editor';
 import { createThreadizer } from './embroidery-client';
@@ -386,7 +387,7 @@ export function DesignStudio({
       return;
     }
     if (!accepted) {
-      setCtaError(`Marca la casilla «${CASILLA_3D}» para continuar.`);
+      setCtaError(`Marca la casilla «${CASILLA_3D_CORTA}…» para continuar.`);
       return;
     }
     setCtaError(null);
@@ -462,29 +463,15 @@ export function DesignStudio({
 
         {/* 2. El bordado */}
         <Step n={2} title="Diseña tu bordado">
-          <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Cómo quieres diseñarlo">
+          <fieldset className="grid min-w-0 gap-2 sm:grid-cols-2">
+            <legend className="sr-only">Cómo quieres diseñarlo</legend>
             {([
               ['estudio', 'En el estudio 3D', 'Sube, escribe o dibuja y colócalo sobre la sudadera.'],
               ['imagen', 'Adjuntar una imagen', 'Sube tu imagen y marca dónde la quieres y su tamaño.']
             ] as const).map(([id, title, text]) => (
-              <button
-                key={id}
-                type="button"
-                role="radio"
-                aria-checked={method === id}
-                onClick={() => setMethod(id)}
-                className={cn('rounded-2xl border p-4 text-left transition', method === id ? 'border-tinta bg-lino-100 ring-1 ring-tinta' : 'border-tinta/15 bg-lino hover:border-tinta')}
-              >
-                <span className="flex items-center gap-2 text-sm font-semibold">
-                  <span className={cn('grid h-4 w-4 place-items-center rounded-full border-2', method === id ? 'border-tinta' : 'border-tinta/30')}>
-                    {method === id && <span className="h-2 w-2 rounded-full bg-tinta" />}
-                  </span>
-                  {title}
-                </span>
-                <span className="mt-1 block text-xs text-tinta-500">{text}</span>
-              </button>
+              <OptionCard key={id} name="br-metodo" value={id} checked={method === id} onChange={(v) => setMethod(v as Method)} title={title} description={text} />
             ))}
-          </div>
+          </fieldset>
 
           <div className={cn('mt-5 space-y-4', method !== 'estudio' && 'hidden')}>
             <p className="rounded-2xl bg-oro-100 px-4 py-3 text-sm">{AVISO_3D}</p>
@@ -575,7 +562,7 @@ export function DesignStudio({
             <label className="flex items-start gap-3 rounded-2xl bg-lino px-4 py-3 text-sm ring-1 ring-tinta/10">
               <input
                 type="checkbox"
-                className="mt-0.5 h-5 w-5 shrink-0 accent-hilo"
+                className="br-check mt-0.5 h-5 w-5 shrink-0 accent-hilo"
                 checked={accepted}
                 onChange={(e) => {
                   setAccepted(e.target.checked);
@@ -584,7 +571,7 @@ export function DesignStudio({
                 required
               />
               <span>
-                <b>{CASILLA_3D}</b> y que el bordado final lo hacemos a mano siguiendo mis indicaciones. *
+                {CASILLA_3D} *
               </span>
             </label>
             {ctaError && <p className="mt-3 rounded-xl bg-hilo-100 px-4 py-3 text-sm text-hilo-600" role="alert">{ctaError}</p>}
@@ -600,7 +587,7 @@ export function DesignStudio({
       </ol>
 
       {/* Camino B */}
-      <section id="te-lo-disenamos" className="mx-auto mt-14 max-w-2xl scroll-mt-24 rounded-3xl bg-tinta p-6 text-lino sm:p-8">
+      <section id="te-lo-disenamos" className="mx-auto mt-14 max-w-[900px] scroll-mt-24 rounded-3xl bg-tinta px-5 py-8 text-lino sm:px-10 sm:py-10 lg:px-14 lg:py-12">
         <p className="eyebrow !text-[#D1C4A4]">Te lo diseñamos</p>
         <h2 className="mt-2 font-display text-3xl sm:text-4xl">¿Prefieres que te lo diseñemos nosotros?</h2>
         <p className="mt-2 text-lino/80">Cuéntanos qué quieres, adjunta tus referencias y te contactamos con un presupuesto. Sin compromiso.</p>
@@ -623,7 +610,12 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
   return (
     <li className="rounded-3xl bg-lino-100 p-5 ring-1 ring-tinta/10 sm:p-6">
       <h2 className="mb-4 flex items-center gap-3 font-display text-2xl">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-tinta font-sans text-sm font-semibold text-lino">{n}</span>
+        <span
+          aria-hidden="true"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tinta p-0 font-sans text-base font-semibold not-italic leading-none tabular-nums tracking-normal text-lino"
+        >
+          {n}
+        </span>
         {title}
       </h2>
       {children}

@@ -144,14 +144,16 @@ export function ShopifyDesignRequest({ prefill, sizes, send }: Props) {
   if (fakeDone)
     return <p className="rounded-2xl bg-lino-100 px-4 py-3 text-tinta" role="status">Hemos recibido tu solicitud, te contactaremos para darte un presupuesto.</p>;
 
-  const lbl = 'mb-1.5 block text-sm font-medium text-lino/85';
+  // Etiquetas siempre encima del campo; campos cortos en 2 columnas desde 768 px, largos a todo el ancho
+  const lbl = 'mb-2 block break-words text-sm font-medium leading-snug text-lino/90';
+  const full = 'md:col-span-2';
   return (
-    <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2 [&_.field]:text-tinta" noValidate>
-      <div>
+    <form onSubmit={submit} className="grid grid-cols-1 gap-x-6 gap-y-6 md:grid-cols-2 [&_.field]:text-tinta" noValidate>
+      <div className="min-w-0">
         <label className={lbl} htmlFor="tl-prenda">Prenda</label>
         <input id="tl-prenda" className="field" value={prenda} onChange={(e) => (touch('prenda'), setPrenda(e.target.value))} />
       </div>
-      <div>
+      <div className="min-w-0">
         <label className={lbl} htmlFor="tl-talla">Talla</label>
         <select id="tl-talla" className="field" value={talla} onChange={(e) => (touch('talla'), setTalla(e.target.value))}>
           <option value="">Aún no lo sé</option>
@@ -160,14 +162,18 @@ export function ShopifyDesignRequest({ prefill, sizes, send }: Props) {
           ))}
         </select>
       </div>
-      <div className="sm:col-span-2">
+      <div className="min-w-0">
         <label className={lbl} htmlFor="tl-color">Color de la prenda</label>
         <input id="tl-color" className="field" value={color} onChange={(e) => (touch('color'), setColor(e.target.value))} />
       </div>
+      <div className="min-w-0">
+        <label className={lbl} htmlFor="tl-tamano">Tamaño aproximado en cm (opcional)</label>
+        <input id="tl-tamano" className="field" placeholder="Ej.: 10 cm de ancho" value={tamano} onChange={(e) => (touch('tamano'), setTamano(e.target.value))} />
+      </div>
 
-      <fieldset className="min-w-0 sm:col-span-2">
-        <legend className={lbl}>Zona(s) donde quieres el diseño (opcional)</legend>
-        <div className="flex flex-wrap gap-2">
+      <fieldset className={cn('min-w-0', full)}>
+        <legend className={cn(lbl, "p-0")}>Zona(s) donde quieres el diseño (opcional, puedes elegir varias)</legend>
+        <div className="grid auto-rows-fr grid-cols-2 gap-2 sm:grid-cols-3">
           {ZONES.map((z) => {
             const on = zonas.includes(z.id);
             return (
@@ -179,7 +185,10 @@ export function ShopifyDesignRequest({ prefill, sizes, send }: Props) {
                   touch('zonas');
                   setZonas((list) => (on ? list.filter((x) => x !== z.id) : [...list, z.id]));
                 }}
-                className={cn('rounded-full border px-3 py-1.5 text-sm transition', on ? 'border-[#D1C4A4] bg-[#D1C4A4] text-tinta' : 'border-lino/30 hover:border-lino')}
+                className={cn(
+                  'flex min-h-[52px] w-full items-center justify-center rounded-xl border-2 px-3 py-2 text-center text-sm leading-tight transition',
+                  on ? 'border-[#D1C4A4] bg-[#D1C4A4] font-semibold text-tinta' : 'border-lino/30 hover:border-lino'
+                )}
               >
                 {z.label}
               </button>
@@ -187,12 +196,8 @@ export function ShopifyDesignRequest({ prefill, sizes, send }: Props) {
           })}
         </div>
       </fieldset>
-      <div className="sm:col-span-2">
-        <label className={lbl} htmlFor="tl-tamano">Tamaño aproximado en cm (opcional)</label>
-        <input id="tl-tamano" className="field" placeholder="Ej.: 10 cm de ancho en el pecho" value={tamano} onChange={(e) => (touch('tamano'), setTamano(e.target.value))} />
-      </div>
 
-      <div className="sm:col-span-2">
+      <div className={cn('min-w-0', full)}>
         <label className={lbl} htmlFor="tl-idea">Descripción de la idea y especificaciones *</label>
         <textarea
           id="tl-idea"
@@ -206,12 +211,12 @@ export function ShopifyDesignRequest({ prefill, sizes, send }: Props) {
         />
       </div>
 
-      <div className="sm:col-span-2">
+      <div className={cn('min-w-0', full)}>
         <span className={lbl}>Referencias (opcional)</span>
         <button
           type="button"
           onClick={() => fileInput.current?.click()}
-          className="flex w-full flex-col items-center gap-1 rounded-2xl border-2 border-dashed border-lino/30 px-4 py-5 text-center transition hover:border-lino"
+          className="flex w-full flex-col items-center gap-1 rounded-2xl border-2 border-dashed border-lino/30 px-4 py-6 text-center transition hover:border-lino"
         >
           <span className="text-sm font-semibold">Adjuntar imágenes o PDF</span>
           <span className="text-xs text-lino/70">Desde la galería o el ordenador · hasta {MAX_FILES} archivos de 15 MB</span>
@@ -222,36 +227,36 @@ export function ShopifyDesignRequest({ prefill, sizes, send }: Props) {
           <ul className="mt-2 space-y-1 text-sm">
             {files.map((f, i) => (
               <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 rounded-xl bg-lino/10 px-3 py-2">
-                <span className="truncate">{f.name} · {(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                <span className="min-w-0 truncate">{f.name} · {(f.size / 1024 / 1024).toFixed(1)} MB</span>
                 <button type="button" onClick={() => setFiles((l) => l.filter((_, j) => j !== i))} aria-label={`Quitar ${f.name}`} className="text-lg leading-none">×</button>
               </li>
             ))}
           </ul>
         )}
       </div>
-      <div className="sm:col-span-2">
+      <div className={cn('min-w-0', full)}>
         <label className={lbl} htmlFor="tl-links">Enlaces de referencia (opcional)</label>
-        <textarea id="tl-links" className="field" rows={2} value={links} onChange={(e) => setLinks(e.target.value)} placeholder="Pinterest, Instagram… (uno por línea)" />
+        <textarea id="tl-links" className="field" rows={3} value={links} onChange={(e) => setLinks(e.target.value)} placeholder="Pinterest, Instagram… (uno por línea)" />
       </div>
 
-      <div>
+      <div className="min-w-0">
         <label className={lbl} htmlFor="tl-cantidad">Cantidad aproximada (opcional)</label>
         <input id="tl-cantidad" className="field" inputMode="numeric" value={cantidad} onChange={(e) => setCantidad(e.target.value)} placeholder="Ej.: 1, 10, 50" />
       </div>
-      <div>
+      <div className="min-w-0">
         <label className={lbl} htmlFor="tl-fecha">Fecha deseada (opcional)</label>
         <input id="tl-fecha" className="field" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
       </div>
 
-      <div className="sm:col-span-2">
+      <div className="min-w-0">
         <label className={lbl} htmlFor="tl-name">Nombre *</label>
         <input id="tl-name" className="field" required autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
       </div>
-      <div>
+      <div className="min-w-0">
         <label className={lbl} htmlFor="tl-email">Email *</label>
         <input id="tl-email" className="field" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
       </div>
-      <div>
+      <div className="min-w-0">
         <label className={lbl} htmlFor="tl-phone">Teléfono (opcional)</label>
         <input id="tl-phone" className="field" type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
       </div>
@@ -262,23 +267,28 @@ export function ShopifyDesignRequest({ prefill, sizes, send }: Props) {
         <input id="tl-web" tabIndex={-1} autoComplete="off" value={honey} onChange={(e) => setHoney(e.target.value)} />
       </div>
 
-      <label className="flex items-start gap-3 text-sm sm:col-span-2">
-        <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-hilo" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-        <span>
+      <label className={cn('flex items-start gap-3 text-[15px] leading-relaxed', full)}>
+        <input
+          type="checkbox"
+          className="br-check br-check--claro mt-0.5 h-5 w-5 shrink-0 accent-[#D1C4A4]"
+          checked={consent}
+          onChange={(e) => setConsent(e.target.checked)}
+        />
+        <span className="min-w-0">
           He leído la <a href="/policies/privacy-policy" target="_blank" rel="noopener" className="underline">política de privacidad</a> y acepto que uséis
           mis datos para responder a esta solicitud. *
         </span>
       </label>
 
-      {error && <p className="rounded-xl bg-hilo-100 px-4 py-3 text-sm text-hilo-600 sm:col-span-2" role="alert">{error}</p>}
+      {error && <p className={cn('rounded-xl bg-hilo-100 px-4 py-3 text-sm text-hilo-600', full)} role="alert">{error}</p>}
       <button
         type="submit"
         disabled={!!status}
-        className="min-h-[52px] rounded-full bg-[#D1C4A4] px-6 text-base font-semibold text-tinta transition hover:bg-[#ddd2b6] disabled:opacity-60 sm:col-span-2"
+        className={cn('min-h-[56px] w-full rounded-full bg-[#D1C4A4] px-6 text-base font-semibold text-tinta transition hover:bg-[#ddd2b6] disabled:opacity-60', full)}
       >
         {status ?? 'Enviar mi solicitud'}
       </button>
-      <p className="text-xs text-lino/70 sm:col-span-2">Te respondemos por email con una propuesta y el presupuesto. No calculamos precio aquí: lo preparamos a mano.</p>
+      <p className={cn('-mt-2 text-xs leading-relaxed text-lino/70', full)}>Te respondemos por email con una propuesta y el presupuesto. No calculamos precio aquí: lo preparamos a mano.</p>
     </form>
   );
 }

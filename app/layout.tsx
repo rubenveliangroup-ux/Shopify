@@ -7,6 +7,8 @@ import { Header } from '@/components/header';
 import { site } from '@/lib/site';
 import { siteUrl } from '@/lib/utils';
 import './globals.css';
+// Opciones con círculo (mismo componente que el tema de Shopify)
+import '../shopify-theme/assets/br-opcion.css';
 
 const display = Fraunces({ subsets: ['latin'], variable: '--font-display', display: 'swap', axes: ['SOFT', 'opsz'] });
 const sans = Inter({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });

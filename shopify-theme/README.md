@@ -80,6 +80,11 @@ Una sola columna (`components/studio/design-studio.tsx`):
 Debajo, con enlace desde arriba (`#te-lo-disenamos`): «¿Prefieres que te lo diseñemos nosotros?»
 (`src/design-request.tsx`). Aviso del 3D en un solo sitio: `components/studio/aviso.ts`.
 
+Opciones tipo tarjeta con círculo: un solo componente, `assets/br-opcion.css` + `snippets/br-opcion.liquid`
+(Liquid) y `components/forms/option-card.tsx` (React), mismo marcado. Horizon define `.grid`, `.flex`,
+`.field` y estilos de casillas con los mismos nombres que Tailwind: `src/studio.css` los neutraliza dentro de
+`#br-studio` (si no, los pasos y formularios se descolocan en la tienda).
+
 ## Logo
 
 Archivos en `marca/` (sacados del logo original sin redibujar: misma forma, fondo transparente):

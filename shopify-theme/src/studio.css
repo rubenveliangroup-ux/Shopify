@@ -19,6 +19,21 @@
 #br-studio a { color: inherit; }
 #br-studio canvas { display: block; }
 #br-studio :focus-visible { outline: 2px solid #C2461F; outline-offset: 2px; }
+/* Horizon (assets/base.css) también define .grid (plantilla de 14 columnas con áreas, en escritorio),
+   .flex (con hueco) y .field (display flex): dentro del estudio solo cuentan las utilidades de Tailwind.
+   Va antes de las utilidades: grid-cols-*, gap-*… (misma especificidad) siguen mandando. */
+#br-studio .grid { grid-template-columns: none; grid-template-areas: none; gap: 0; }
+#br-studio .flex { gap: 0; }
+#br-studio .field { display: block; }
+/* Casillas: Horizon les quita la apariencia nativa y el reinicio de bordes de arriba las dejaba
+   invisibles. Una sola clase: .br-check (y .br-check--claro sobre fondo oscuro). */
+#br-studio .br-check { appearance: none; -webkit-appearance: none; display: inline-grid; place-content: center; flex: none; width: 20px; height: 20px; margin: 0; padding: 0; border: 2px solid rgba(27, 26, 23, 0.55); border-radius: 5px; background: #fff; cursor: pointer; }
+#br-studio .br-check:checked { background: #1b1a17; border-color: #1b1a17; }
+#br-studio .br-check::after { content: none; }
+#br-studio .br-check:checked::after { content: ''; position: static; width: 10px; height: 6px; margin-top: -2px; border: 2px solid #fff; border-top: 0; border-right: 0; background: none; transform: rotate(-45deg); -webkit-mask: none; mask: none; }
+#br-studio .br-check--claro { border-color: rgba(247, 245, 240, 0.75); background: transparent; }
+#br-studio .br-check--claro:checked { background: #d1c4a4; border-color: #d1c4a4; }
+#br-studio .br-check--claro:checked::after { border-color: #1b1a17; }
 
 /* Con preflight desactivado, base solo emite las variables --tw-* (anillos, sombras, transformaciones) */
 @tailwind base;

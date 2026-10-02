@@ -3,11 +3,12 @@
  * para toda la web: cambiarlo aquí.
  */
 export const AVISO_3D =
-  'El estudio 3D es solo una referencia para indicarnos dónde quieres tu diseño y que te hagas una idea. No representa el resultado final: lo bordamos a mano siguiendo tus indicaciones lo mejor posible. El precio es aproximado y se confirma tras digitalizar el diseño.';
+  'El estudio 3D es solo una referencia para indicarnos dónde quieres tu diseño y que te hagas una idea. No representa el resultado final: lo bordamos a máquina siguiendo tus indicaciones lo mejor posible. El precio es aproximado y se confirma tras digitalizar el diseño.';
 
 /** Versión corta que viaja en la línea del carrito y del pedido (propiedad visible «Importante»). */
 export const AVISO_3D_CARRITO =
-  'La vista 3D es solo orientativa: lo bordamos a mano siguiendo tus indicaciones. El precio del bordado es aproximado y se confirma tras digitalizar el diseño.';
+  'La vista 3D es solo orientativa: lo bordamos a máquina siguiendo tus indicaciones. El precio del bordado es aproximado y se confirma tras digitalizar el diseño.';
 
-/** Casilla obligatoria antes de añadir al carrito. */
-export const CASILLA_3D = 'Entiendo que la vista 3D es solo orientativa';
+/** Casilla obligatoria antes de añadir al carrito (texto completo y forma corta para los avisos). */
+export const CASILLA_3D = 'Entiendo que la vista 3D es solo orientativa y que el bordado final lo hacemos a máquina siguiendo mis indicaciones.';
+export const CASILLA_3D_CORTA = 'Entiendo que la vista 3D es solo orientativa';

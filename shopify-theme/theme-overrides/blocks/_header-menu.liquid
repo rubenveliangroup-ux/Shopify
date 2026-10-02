@@ -45,7 +45,13 @@
             class="menu-list__list list-unstyled"
             role="list"
           >
+            {%- comment -%} BR: «Diseña tu prenda» e «Impulsa tu marca» (si faltan en el menú) justo antes de Contacto {%- endcomment -%}
+            {%- assign br_extras = false -%}
             {% for link in block_settings.menu.links %}
+              {%- if br_extras == false and link.url contains '/pages/contact' -%}
+                {% render 'br-nav-extra', linklist: block_settings.menu, variant: 'bar' %}
+                {%- assign br_extras = true -%}
+              {%- endif -%}
               <li>
                 <a
                   href="{{ link.url }}"
@@ -59,7 +65,7 @@
                 </a>
               </li>
             {% endfor %}
-            {% render 'br-nav-extra', linklist: block_settings.menu, variant: 'bar' %}
+            {%- unless br_extras -%}{% render 'br-nav-extra', linklist: block_settings.menu, variant: 'bar' %}{%- endunless -%}
           </ul>
         </div>
       </div>
@@ -94,7 +100,12 @@
     %}
 
     {% capture children %}
+      {%- assign br_extras = false -%}
       {% for link in block_settings.menu.links %}
+        {%- if br_extras == false and link.url contains '/pages/contact' -%}
+          {% render 'br-nav-extra', linklist: block_settings.menu, variant: 'menu' %}
+          {%- assign br_extras = true -%}
+        {%- endif -%}
         <li
           class="menu-list__list-item"
           on:blur="/deactivate"
@@ -170,8 +181,8 @@
           {%- endif -%}
         </li>
       {% endfor %}
-      {%- comment -%} BR: respaldo si el menú no trae Diseña tu prenda / Impulsa tu marca {%- endcomment -%}
-      {% render 'br-nav-extra', linklist: block_settings.menu, variant: 'menu' %}
+      {%- comment -%} BR: respaldo si el menú no trae Diseña tu prenda / Impulsa tu marca (y no hay Contacto) {%- endcomment -%}
+      {%- unless br_extras -%}{% render 'br-nav-extra', linklist: block_settings.menu, variant: 'menu' %}{%- endunless -%}
       <li
         class="menu-list__list-item"
         slot="more"

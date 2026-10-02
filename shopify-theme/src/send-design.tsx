@@ -173,7 +173,7 @@ export function ShopifySendDesign({ onClose, getAttachments, details, embroidery
               </div>
             </div>
             <label className="mt-4 flex items-start gap-3 text-sm">
-              <input type="checkbox" className="mt-1 h-5 w-5 accent-hilo" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+              <input type="checkbox" className="br-check mt-1 h-5 w-5 shrink-0 accent-hilo" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
               <span>
                 He leído la <a href="/policies/privacy-policy" target="_blank" rel="noopener" className="underline">política de privacidad</a> y acepto que
                 usemos mis datos para responder a esta solicitud.

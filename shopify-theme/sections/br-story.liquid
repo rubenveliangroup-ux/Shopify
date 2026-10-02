@@ -8,7 +8,7 @@
         {%- if s.image != blank -%}
           {{ s.image | image_url: width: 1400 | image_tag: loading: 'lazy', widths: '400, 700, 1000, 1400', sizes: '(min-width: 990px) 50vw, 100vw', alt: s.image.alt }}
         {%- else -%}
-          <div class="br-ph-box">[Foto pendiente: el taller, las manos bordando o la máquina con una prenda. Vertical 4:5, mínimo 1400 px.]</div>
+          <div class="br-ph-box">[Foto pendiente: el taller, la máquina bordando una prenda o un detalle del bordado. Vertical 4:5, mínimo 1400 px.]</div>
         {%- endif -%}
       </div>
       <div>

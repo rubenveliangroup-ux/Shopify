@@ -1,0 +1,19 @@
+{%- doc -%}
+  Opción tipo tarjeta con círculo de selección (estilos: assets/br-opcion.css, cargarlo en la sección).
+  Mismo marcado que components/forms/option-card.tsx.
+
+  @param {string} name - Nombre del grupo (el del campo del formulario)
+  @param {string} value - Valor que se envía
+  @param {string} titulo - Título de la opción
+  @param {string} [texto] - Descripción breve
+  @param {boolean} [checked] - Elegida de entrada
+  @param {boolean} [oscuro] - Sobre fondo oscuro
+{%- enddoc -%}
+<label class="br-opcion{% if oscuro %} br-opcion--oscuro{% endif %}">
+  <input class="br-opcion__input" type="radio" name="{{ name | escape }}" value="{{ value | escape }}"{% if checked %} checked{% endif %}>
+  <span class="br-opcion__marca" aria-hidden="true"></span>
+  <span class="br-opcion__texto">
+    <span class="br-opcion__titulo">{{ titulo }}</span>
+    {%- if texto != blank -%}<span class="br-opcion__desc">{{ texto }}</span>{%- endif -%}
+  </span>
+</label>

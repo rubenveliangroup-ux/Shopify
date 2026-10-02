@@ -37,7 +37,7 @@ se hace en el hilo principal. Solo se recalcula cuando cambia el diseño (220 ms
    - fondo blanco ignorado;
    - **hilo que no se distingue de la prenda** (ΔE2000 < `contrasteMinimo`, 12).
 8. Junto al precio, el aviso del estudio 3D (`components/studio/aviso.ts`): referencia orientativa,
-   bordado a mano siguiendo las indicaciones, precio aproximado que se confirma tras digitalizar.
+   bordado a máquina siguiendo las indicaciones, precio aproximado que se confirma tras digitalizar.
 
 Código:
 - `components/studio/embroidery-threadize.ts`: análisis;

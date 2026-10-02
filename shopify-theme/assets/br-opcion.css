@@ -1,0 +1,78 @@
+/*
+ * BR · Opción tipo tarjeta con círculo de selección (un único componente para toda la web).
+ * Marcado: snippets/br-opcion.liquid (Liquid) y components/forms/option-card.tsx (React), idénticos:
+ *   <label class="br-opcion [br-opcion--oscuro]">
+ *     <input class="br-opcion__input" type="radio" name="…" value="…">
+ *     <span class="br-opcion__marca"></span>
+ *     <span class="br-opcion__texto"><span class="br-opcion__titulo">…</span><span class="br-opcion__desc">…</span></span>
+ *   </label>
+ * Radio nativo (oculto): una sola elegida por grupo, flechas del teclado, envío del valor en el formulario.
+ * Borde y círculo con sombras interiores: el borde de 2 px no cambia el tamaño al elegir.
+ * Clase doble: gana a reglas genéricas de los formularios (p. ej. «.bb-field label») sin !important.
+ */
+.br-opcion.br-opcion {
+  --br-opcion-fondo: #fbf8f3;
+  --br-opcion-borde: rgba(27, 26, 23, 0.2);
+  --br-opcion-activo: #1b1a17;
+  --br-opcion-texto: inherit;
+  --br-opcion-suave: rgba(27, 26, 23, 0.62);
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: start;
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--br-opcion-fondo);
+  box-shadow: inset 0 0 0 2px var(--br-opcion-borde);
+  color: var(--br-opcion-texto);
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+}
+/* Fondo oscuro: el color claro de la marca para el círculo relleno y el borde */
+.br-opcion.br-opcion--oscuro {
+  --br-opcion-fondo: rgba(247, 245, 240, 0.06);
+  --br-opcion-borde: rgba(247, 245, 240, 0.32);
+  --br-opcion-activo: #f7f5f0;
+  --br-opcion-suave: rgba(247, 245, 240, 0.72);
+}
+.br-opcion.br-opcion:hover { --br-opcion-borde: rgba(27, 26, 23, 0.4); }
+.br-opcion.br-opcion--oscuro:hover { --br-opcion-borde: rgba(247, 245, 240, 0.55); }
+.br-opcion.br-opcion:has(.br-opcion__input:checked) { box-shadow: inset 0 0 0 2px var(--br-opcion-activo); }
+.br-opcion.br-opcion:has(.br-opcion__input:focus-visible) { outline: 2px solid #b5532f; outline-offset: 3px; }
+
+/* El radio real, invisible pero accesible (Horizon da estilos globales a input[type=radio]) */
+.br-opcion .br-opcion__input {
+  position: absolute;
+  inset: auto;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  pointer-events: none;
+  appearance: none;
+}
+/* Círculo: vacío con borde gris; elegido, relleno sólido. Alineado con la primera línea del título. */
+.br-opcion .br-opcion__marca {
+  display: block;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--br-opcion-borde);
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.br-opcion .br-opcion__input:checked + .br-opcion__marca {
+  background: var(--br-opcion-activo);
+  box-shadow: inset 0 0 0 2px var(--br-opcion-activo);
+}
+.br-opcion .br-opcion__texto { display: block; min-width: 0; }
+.br-opcion .br-opcion__titulo { display: block; font-size: 15px; font-weight: 600; line-height: 20px; }
+.br-opcion .br-opcion__desc { display: block; margin-top: 3px; font-size: 13px; line-height: 1.4; color: var(--br-opcion-suave); }

@@ -4,6 +4,7 @@
   sin límite de cantidad, y formulario de contacto de Shopify (llega al email de la tienda).
 {%- endcomment -%}
 
+{{ 'br-opcion.css' | asset_url | stylesheet_tag }}
 <style>
   .br-brands { --bb-ink: #171412; --bb-muted: #5b544f; --bb-cream: #f5f0e8; --bb-card: #fbf8f3; --bb-accent: #c2461f; --bb-accent-dark: #a33a18; --bb-green: #1e3a2f; --bb-gold: #b98a3e;
     color: var(--bb-ink); font-family: var(--font-body--family, system-ui, sans-serif); background: var(--bb-cream); }
@@ -61,10 +62,6 @@
   .bb-field input:not([type=radio]), .bb-field select, .bb-field textarea { width: 100%; border: 1px solid rgba(23,20,18,.18); border-radius: 14px; background: var(--bb-cream); padding: 13px 15px; font: inherit; font-size: 15px; color: var(--bb-ink); }
   .bb-field input:focus, .bb-field select:focus, .bb-field textarea:focus { outline: 2px solid rgba(194,70,31,.35); border-color: var(--bb-ink); }
   .bb-radios { display: grid; gap: 10px; }
-  .bb-radio { display: flex; gap: 12px; align-items: flex-start; border: 1px solid rgba(23,20,18,.15); border-radius: 16px; padding: 14px 16px; cursor: pointer; background: var(--bb-cream); }
-  .bb-radio input { flex: none; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--bb-accent); }
-  .bb-radio strong { display: block; font-size: 15px; }
-  .bb-radio span span { display: block; font-size: 13px; color: var(--bb-muted); margin-top: 2px; }
   .bb-note { font-size: 13px; color: var(--bb-muted); text-align: center; }
   .bb-colors { margin-top: 14px; display: grid; gap: 6px; }
   .bb-hint { margin: 4px 0 0; font-size: 12.5px; color: var(--bb-muted); }
@@ -181,11 +178,11 @@
         <input type="hidden" name="contact[Origen]" value="Impulsa tu marca">
 
         <div class="bb-field">
-          <label>¿Qué necesitas?</label>
-          <div class="bb-radios">
-            <label class="bb-radio"><input type="radio" name="contact[Servicio]" value="Tengo prenda y diseño: solo bordado" checked><span><strong>Tengo la prenda y el diseño</strong><span>Solo necesito que lo bordéis</span></span></label>
-            <label class="bb-radio"><input type="radio" name="contact[Servicio]" value="Tengo la prenda: necesito diseño + bordado"><span><strong>Tengo la prenda, necesito el diseño</strong><span>Diseño de logo o colección + bordado</span></span></label>
-            <label class="bb-radio"><input type="radio" name="contact[Servicio]" value="No lo tengo claro"><span><strong>No lo tengo claro</strong><span>Os cuento la idea y me asesoráis</span></span></label>
+          <label id="bb-necesitas">¿Qué necesitas?</label>
+          <div class="bb-radios" role="radiogroup" aria-labelledby="bb-necesitas">
+            {% render 'br-opcion', name: 'contact[Servicio]', value: 'Tengo prenda y diseño: solo bordado', titulo: 'Tengo la prenda y el diseño', texto: 'Solo necesito que lo bordéis', checked: true %}
+            {% render 'br-opcion', name: 'contact[Servicio]', value: 'Tengo la prenda: necesito diseño + bordado', titulo: 'Tengo la prenda, necesito el diseño', texto: 'Diseño de logo o colección + bordado' %}
+            {% render 'br-opcion', name: 'contact[Servicio]', value: 'No lo tengo claro', titulo: 'No lo tengo claro', texto: 'Os cuento la idea y me asesoráis' %}
           </div>
           <div class="bb-colors">
             <br-color-picker multiple max="8" label="Colores de tu proyecto (opcional)" name="contact[Colores del proyecto]" value="#1c1c1e"></br-color-picker>
