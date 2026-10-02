@@ -36,12 +36,46 @@ Ver [`MODELO-3D.md`](MODELO-3D.md). Sudadera real de Meshy preparada con `tools/
 `tools/render-vistas.mjs`). El visor 3D es un chunk aparte (`assets/br-studio-*.js`): al subir
 assets, sube **todos** los `br-studio*.js`. `npm run test:3d` comprueba px→cm en todas las tallas.
 
+## Portada, catálogo y pie (secciones BR)
+
+Todo es editable en el editor de temas y usa `assets/br-landing.css` (mobile-first, identidad del tema).
+
+**Portada** (`templates/index.json`), en este orden:
+- `br-hero`: pantalla completa, vídeo o imagen, «Ver catálogo» / «Diseña tu prenda»; es la única imagen sin diferir;
+- `br-featured`: colección destacada;
+- `br-steps`: cómo funciona, 4 pasos;
+- `br-story`: marca, bordado gallego, Pontevedra, con marcadores amarillos para completar;
+- `br-cta-marcas`: Impulsa tu marca;
+- `br-faq`;
+- `br-newsletter`: formulario de cliente con la etiqueta `newsletter`.
+
+**FAQ**: una sola fuente, la página «Preguntas frecuentes». Cada pregunta es un `<h3>` en su contenido.
+Esa página usa `templates/page.faq.json`.
+
+**Catálogo**: `templates/collection.json` → `br-main-collection` + `snippets/br-product-card.liquid`.
+- 2 columnas en móvil y 3–4 en escritorio.
+- Segunda foto al pasar el ratón.
+- Filtros de *Search & Discovery* en panel inferior (móvil) o lateral (escritorio).
+- «Cargar más» sin saltos y estado vacío.
+- Etiquetas: metacampo `custom.etiqueta` («Nuevo», «Edición limitada») o las etiquetas `nuevo` /
+  `edicion-limitada`.
+
+**Pie**: `sections/footer-group.json` → `br-footer`, con:
+- menús `pie-tienda`, `pie-ayuda` y `pie-legal`;
+- redes, contacto y newsletter editables;
+- iconos de pago dinámicos;
+- acordeón en móvil, columnas en escritorio.
+
+Textos base de las páginas legales: `contenido/*.html` (BORRADOR, con marcadores).
+
 ## Calculadora de bordado
 
-Ver [CALCULADORA.md](./CALCULADORA.md): estimación de puntadas y colores, tramos de precio, productos ocultos y calibración.
+Ver [CALCULADORA.md](./CALCULADORA.md): estimación de puntadas y colores, tramos de precio, productos ocultos,
+calibración y «Enviar mi diseño» (subida de archivos vía carrito + formulario de contacto nativo).
 
 ## Actualizar el estudio en Shopify
 
 1. `npm run build:theme` y commit de `shopify-theme/assets/`.
-2. Subir `assets/br-studio.js` y `assets/br-studio.css` al tema (Admin API `themeFilesUpsert` con la URL raw de GitHub,
+2. Subir `assets/br-studio*.js` (con sus chunks), `br-studio.css`, `br-bordado-worker.js`, `br-formularios.js`
+   y `br-color-picker.js` al tema (Admin API `themeFilesUpsert` con la URL raw de GitHub,
    o a mano en *Editar código → assets*).

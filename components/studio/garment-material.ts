@@ -12,10 +12,11 @@ export const UNITS_PER_METER = 100 / CM_PER_UNIT;
 // recibe la tela de frente suma ≈ 1: el color que se ve es el elegido.
 export const STUDIO_LIGHTS = {
   toneMapping: THREE.NeutralToneMapping,
-  env: 0.4,
+  exposure: 0.85,
+  env: 0.3,
   hemi: 0.15,
   directional: [
-    [[2.2, 3.2, 4], 0.75],
+    [[2.2, 3.2, 4], 0.65],
     [[-3, 1.2, 2], 0.25],
     [[0, 2, -4], 0.35]
   ] as [[number, number, number], number][]

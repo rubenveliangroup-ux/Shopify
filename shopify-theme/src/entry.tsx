@@ -4,6 +4,7 @@ import { DesignStudio } from '@/components/studio/design-studio';
 import type { SizeChartData } from '@/components/studio/size-chart';
 import { DEFAULT_EMBROIDERY_CONFIG, type EmbroideryConfig, type EmbroideryPricing, type PricedVariant } from '@/components/studio/embroidery-pricing';
 import { ShopifyAddToCart, type ShopifyVariant } from './add-to-cart';
+import { ShopifySendDesign, type SendConfig } from './send-design';
 
 type Config = {
   variants: ShopifyVariant[];
@@ -17,6 +18,10 @@ type Config = {
   stockColors?: string;
   /** URL de assets/br-hilos.json (carta de hilos editable). */
   threadPaletteUrl?: string;
+  /** «Enviar mi diseño»: formulario de contacto oculto y variante de subida de archivos. */
+  send?: SendConfig;
+  /** URL de assets/br-bordado-worker.js (hilado del bordado sin bloquear la página). */
+  workerUrl?: string;
   /** GLB de la sudadera (ajuste del tema, modelo 3D del producto o assets/br-sudadera.glb). */
   modelUrl?: string;
   /** Fotos de la vista ligera (sin 3D): assets/br-prenda-delante.webp y br-prenda-detras.webp. */
@@ -46,8 +51,15 @@ function pricingFrom(c: Config['embroidery']): EmbroideryPricing | undefined {
     .filter((n) => n > 0);
   const pricing: EmbroideryPricing = {
     puntadasPorCm2: num(c.puntadasPorCm2, D.puntadasPorCm2),
+    puntadasPorCmLinea: num(c.puntadasPorCmLinea, D.puntadasPorCmLinea),
     puntadasPorCmBorde: num(c.puntadasPorCmBorde, D.puntadasPorCmBorde),
+    anchoMaxLineaMm: num(c.anchoMaxLineaMm, D.anchoMaxLineaMm),
     margenSeguridad: num(c.margenSeguridad, D.margenSeguridad),
+    margenError: num(c.margenError, D.margenError),
+    umbralPresupuesto: num(c.umbralPresupuesto, D.umbralPresupuesto),
+    bastidorAnchoCm: num(c.bastidorAnchoCm, D.bastidorAnchoCm),
+    bastidorAltoCm: num(c.bastidorAltoCm, D.bastidorAltoCm),
+    contrasteMinimo: num(c.contrasteMinimo, D.contrasteMinimo),
     costePorMil: num(c.costePorMil, D.costePorMil),
     multiplicadorMargen: num(c.multiplicadorMargen, D.multiplicadorMargen),
     cuotaFija: num(c.cuotaFija, D.cuotaFija),
@@ -93,7 +105,9 @@ function mount() {
       colorMode={(config.colorMode === 'stock' ? 'stock' : 'libre') as GarmentColorMode}
       stockColors={parseColorList(config.stockColors)}
       threadPaletteUrl={config.threadPaletteUrl}
+      workerUrl={config.workerUrl}
       model={{ url: config.modelUrl || undefined, liteImages: config.liteImages, sizes: config.sizeChart?.filas }}
+      renderSend={(p) => <ShopifySendDesign {...p} variants={config.variants} send={config.send ?? { formId: 'br-send-form' }} />}
       renderCheckout={(p) => (
         <ShopifyAddToCart
           {...p}

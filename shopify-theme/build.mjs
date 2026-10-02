@@ -37,6 +37,31 @@ for (const [file, out] of Object.entries(result.metafile.outputs)) {
   console.log(`  ${file.replace(ASSETS, '')}: ${(out.bytes / 1024).toFixed(0)} KB${three ? ' (visor 3D)' : ''}`);
 }
 
+// Worker del hilado del bordado (análisis y texturas fuera del hilo principal)
+await build({
+  entryPoints: ['components/studio/embroidery-worker.ts'],
+  bundle: true,
+  minify: true,
+  format: 'iife',
+  target: ['es2020'],
+  outfile: 'shopify-theme/assets/br-bordado-worker.js',
+  legalComments: 'none',
+  logLevel: 'info'
+});
+
+// Subida del diseño en «Cuéntanos tu proyecto»
+await build({
+  entryPoints: ['shopify-theme/src/forms-entry.ts'],
+  bundle: true,
+  minify: true,
+  format: 'iife',
+  target: ['es2020'],
+  alias: { '@': '.' },
+  outfile: 'shopify-theme/assets/br-formularios.js',
+  legalComments: 'none',
+  logLevel: 'info'
+});
+
 // Selector de color suelto (páginas Liquid sin el estudio)
 await build({
   entryPoints: ['shopify-theme/src/color-picker-entry.ts'],

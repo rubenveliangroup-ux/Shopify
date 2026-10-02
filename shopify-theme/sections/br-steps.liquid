@@ -1,0 +1,53 @@
+{%- comment -%} BR · Cómo funciona (un bloque por paso). {%- endcomment -%}
+{{ 'br-landing.css' | asset_url | stylesheet_tag }}
+<section class="br br-section" style="background: var(--br-sand-soft, #ebe4d6);">
+  <div class="br-wrap">
+    <div class="br-head">
+      <div>
+        {%- if section.settings.eyebrow != blank -%}<p class="br-eyebrow">{{ section.settings.eyebrow }}</p>{%- endif -%}
+        <h2 class="br-h2">{{ section.settings.heading }}</h2>
+      </div>
+      {%- if section.settings.button_label != blank -%}
+        <a class="br-btn" href="{{ section.settings.button_link | default: '/pages/disena-tu-prenda' }}">{{ section.settings.button_label }}</a>
+      {%- endif -%}
+    </div>
+    <ol class="br-steps">
+      {%- for block in section.blocks -%}
+        <li class="br-step" {{ block.shopify_attributes }}>
+          <span class="br-step__n" aria-hidden="true">{{ forloop.index | prepend: '0' | slice: -2, 2 }}</span>
+          <h3 class="br-h3">{{ block.settings.title }}</h3>
+          <p>{{ block.settings.text }}</p>
+        </li>
+      {%- endfor -%}
+    </ol>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "BR · Cómo funciona",
+  "tag": "div",
+  "max_blocks": 6,
+  "settings": [
+    { "type": "text", "id": "eyebrow", "label": "Antetítulo", "default": "Cómo funciona" },
+    { "type": "text", "id": "heading", "label": "Título", "default": "De tu idea a tu armario" },
+    { "type": "text", "id": "button_label", "label": "Botón", "default": "Diseña tu prenda" },
+    { "type": "url", "id": "button_link", "label": "Enlace del botón" }
+  ],
+  "blocks": [
+    { "type": "step", "name": "Paso", "settings": [
+      { "type": "text", "id": "title", "label": "Título", "default": "Paso" },
+      { "type": "textarea", "id": "text", "label": "Texto", "default": "Describe el paso." }
+    ] }
+  ],
+  "presets": [{
+    "name": "BR · Cómo funciona",
+    "blocks": [
+      { "type": "step", "settings": { "title": "Elige tu prenda", "text": "Sudadera oversize en el color que quieras, con su tabla de medidas para acertar con la talla." } },
+      { "type": "step", "settings": { "title": "Diseña", "text": "Sube tu dibujo o logo, escribe un texto o elige un diseño. Lo ves en 3D y con el precio del bordado al momento." } },
+      { "type": "step", "settings": { "title": "Lo bordamos", "text": "Revisamos tu diseño, lo preparamos para la máquina y lo bordamos. Si hay algo que ajustar, te avisamos antes." } },
+      { "type": "step", "settings": { "title": "Lo recibes", "text": "Te lo enviamos a casa. Plazo de producción y envío: [completa en «Envíos y plazos»]." } }
+    ]
+  }]
+}
+{% endschema %}

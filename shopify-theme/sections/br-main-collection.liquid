@@ -1,0 +1,232 @@
+{%- comment -%}
+  BR · Catálogo: cuadrícula 2 columnas en móvil y 3-4 en escritorio, filtros y orden en un panel
+  (desde abajo en móvil, lateral en escritorio), etiquetas, «Cargar más» sin saltos y estado vacío.
+
+  Los filtros son los de Shopify (app Search & Discovery > Filtros): tipo de producto, talla
+  (opción «Talla»), color (metacampo «Color de la prenda») y precio. Funciona sin JavaScript
+  (formulario GET normal); con JavaScript, «Cargar más» añade la página siguiente sin recargar.
+{%- endcomment -%}
+{{ 'br-landing.css' | asset_url | stylesheet_tag }}
+{%- liquid
+  assign s = section.settings
+  assign sort_by = collection.sort_by | default: collection.default_sort_by
+  assign active = 0
+  for f in collection.filters
+    assign active = active | plus: f.active_values.size
+    if f.type == 'price_range'
+      if f.min_value.value != nil or f.max_value.value != nil
+        assign active = active | plus: 1
+      endif
+    endif
+  endfor
+-%}
+{%- paginate collection.products by s.per_page -%}
+<section class="br br-cat" id="br-cat-{{ section.id }}" data-section="{{ section.id }}">
+  <div class="br-wrap">
+    <div class="br-cat__bar">
+      <p class="br-cat__count" role="status">{{ collection.products_count }} {% if collection.products_count == 1 %}producto{% else %}productos{% endif %}</p>
+      <button type="button" class="br-btn br-btn--ghost br-cat__open" data-open-filters aria-controls="br-filters-{{ section.id }}">
+        Filtrar y ordenar{% if active > 0 %} <span class="br-cat__n">{{ active }}</span>{% endif %}
+      </button>
+    </div>
+
+    {%- if active > 0 -%}
+      <ul class="br-chips" aria-label="Filtros activos">
+        {%- for f in collection.filters -%}
+          {%- for v in f.active_values -%}
+            <li><a href="{{ v.url_to_remove }}" class="br-chip">{{ v.label }} <span aria-hidden="true">✕</span><span class="br-vh">Quitar filtro</span></a></li>
+          {%- endfor -%}
+          {%- if f.type == 'price_range' -%}
+            {%- if f.min_value.value != nil or f.max_value.value != nil -%}
+              <li><a href="{{ f.url_to_remove }}" class="br-chip">{{ f.min_value.value | default: 0 | money_without_trailing_zeros }}–{{ f.max_value.value | default: f.range_max | money_without_trailing_zeros }} <span aria-hidden="true">✕</span></a></li>
+            {%- endif -%}
+          {%- endif -%}
+        {%- endfor -%}
+        <li><a href="{{ collection.url }}?sort_by={{ sort_by }}" class="br-link br-chips__clear">Borrar todo</a></li>
+      </ul>
+    {%- endif -%}
+
+    {%- if collection.products.size > 0 -%}
+      <ul class="br-grid{% if s.columns_desktop == '4' %} br-grid--4{% endif %}" role="list" data-grid>
+        {%- for product in collection.products -%}
+          {%- liquid
+            assign eager = false
+            if forloop.index <= 2 and paginate.current_page == 1
+              assign eager = true
+            endif
+          -%}
+          <li>{% render 'br-product-card', product: product, eager: eager %}</li>
+        {%- endfor -%}
+      </ul>
+      {%- if paginate.next -%}
+        <div class="br-cat__more">
+          <p class="br-small" data-progress>Has visto {{ paginate.current_offset | plus: collection.products.size }} de {{ paginate.items }}</p>
+          <a class="br-btn br-btn--ghost" href="{{ paginate.next.url }}" data-more>Cargar más</a>
+        </div>
+      {%- endif -%}
+    {%- else -%}
+      <div class="br-empty">
+        {%- if active > 0 -%}
+          <h2 class="br-h3">No hay productos con estos filtros</h2>
+          <p class="br-lead">Prueba a quitar algún filtro o a ver toda la colección.</p>
+          <div class="br-btns"><a class="br-btn" href="{{ collection.url }}">Ver todo</a><a class="br-btn br-btn--ghost" href="/pages/disena-tu-prenda">Diseña tu prenda</a></div>
+        {%- else -%}
+          <h2 class="br-h3">Esta colección aún está vacía</h2>
+          <p class="br-lead">Muy pronto habrá novedades. Mientras tanto, puedes crear la tuya.</p>
+          <div class="br-btns"><a class="br-btn" href="/pages/disena-tu-prenda">Diseña tu prenda</a></div>
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+  </div>
+
+  {%- comment -%} Panel de filtros y orden: hoja inferior en móvil, lateral en escritorio {%- endcomment -%}
+  <dialog class="br-sheet" id="br-filters-{{ section.id }}" aria-label="Filtrar y ordenar">
+    <form class="br-sheet__form" action="{{ collection.url }}" method="get">
+      <div class="br-sheet__head">
+        <p class="br-h3">Filtrar y ordenar</p>
+        <button type="button" class="br-sheet__x" data-close aria-label="Cerrar">✕</button>
+      </div>
+      <div class="br-sheet__body">
+        <fieldset class="br-fs">
+          <legend>Ordenar por</legend>
+          <select name="sort_by" class="br-select">
+            {%- for o in collection.sort_options -%}
+              <option value="{{ o.value }}"{% if o.value == sort_by %} selected{% endif %}>{{ o.name }}</option>
+            {%- endfor -%}
+          </select>
+        </fieldset>
+        {%- for f in collection.filters -%}
+          <details class="br-fs"{% if f.active_values.size > 0 or forloop.index <= 2 %} open{% endif %}>
+            <summary>{{ f.label }}{% if f.active_values.size > 0 %} <span class="br-cat__n">{{ f.active_values.size }}</span>{% endif %}</summary>
+            {%- case f.type -%}
+              {%- when 'list' or 'boolean' -%}
+                <ul class="br-opts{% if f.presentation == 'swatch' %} br-opts--sw{% endif %}">
+                  {%- for v in f.values -%}
+                    <li>
+                      <label class="br-opt{% if v.count == 0 and v.active == false %} is-off{% endif %}">
+                        <input type="checkbox" name="{{ v.param_name }}" value="{{ v.value }}"{% if v.active %} checked{% endif %}{% if v.count == 0 and v.active == false %} disabled{% endif %}>
+                        {%- if v.swatch.color -%}<i style="background: {{ v.swatch.color }}"></i>{%- endif -%}
+                        <span>{{ v.label }}</span><small>{{ v.count }}</small>
+                      </label>
+                    </li>
+                  {%- endfor -%}
+                </ul>
+              {%- when 'price_range' -%}
+                <div class="br-price">
+                  <label>Desde (€)<input type="text" inputmode="decimal" name="{{ f.min_value.param_name }}" value="{% if f.min_value.value != nil %}{{ f.min_value.value | money_without_currency }}{% endif %}" placeholder="0"></label>
+                  <label>Hasta (€)<input type="text" inputmode="decimal" name="{{ f.max_value.param_name }}" value="{% if f.max_value.value != nil %}{{ f.max_value.value | money_without_currency }}{% endif %}" placeholder="{{ f.range_max | money_without_currency }}"></label>
+                </div>
+            {%- endcase -%}
+          </details>
+        {%- else -%}
+          <p class="br-small">Aún no hay filtros configurados (Search & Discovery > Filtros).</p>
+        {%- endfor -%}
+      </div>
+      <div class="br-sheet__foot">
+        <a class="br-btn br-btn--ghost" href="{{ collection.url }}">Borrar</a>
+        <button type="submit" class="br-btn">Ver productos</button>
+      </div>
+    </form>
+  </dialog>
+</section>
+{%- endpaginate -%}
+
+<style>
+  .br-cat { padding: 24px 0 72px; }
+  @media (min-width: 990px) { .br-cat { padding: 32px 0 112px; } }
+  .br-cat__bar { position: sticky; top: var(--header-height, 0px); z-index: 4; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; margin-bottom: 16px; background: var(--br-bg); border-bottom: 1px solid var(--br-line); }
+  .br-cat__count { margin: 0; color: var(--br-muted); font-size: 13px; }
+  .br-cat__open { min-height: 44px; padding: 0 18px; font-size: 13px; }
+  .br-cat__n { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--br-ink); color: var(--br-bg); font-size: 11px; }
+  .br-chips { list-style: none; margin: 0 0 20px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .br-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border: 1px solid var(--br-line); border-radius: 999px; color: inherit; text-decoration: none; font-size: 13px; background: #fff; }
+  .br-chips__clear { font-size: 13px; padding: 0 6px; }
+  .br-cat__more { display: grid; justify-items: center; gap: 10px; margin-top: 40px; }
+  .br-empty { padding: 48px 0; text-align: center; display: grid; justify-items: center; }
+  .br-empty .br-btns { justify-content: center; }
+  .br-sheet { border: 0; padding: 0; background: var(--br-bg); color: var(--br-ink); width: 100%; max-width: 100%; max-height: 88svh; margin: auto 0 0; border-radius: 20px 20px 0 0; box-shadow: 0 -10px 40px rgba(0,0,0,.18); }
+  .br-sheet::backdrop { background: rgba(27, 26, 23, .45); }
+  .br-sheet[open] { animation: br-up .25s ease-out; }
+  @keyframes br-up { from { transform: translateY(24px); opacity: 0; } }
+  @media (min-width: 750px) {
+    .br-sheet { margin: 0 0 0 auto; height: 100svh; max-height: 100svh; width: 420px; border-radius: 0; }
+    .br-sheet[open] { animation-name: br-side; }
+    @keyframes br-side { from { transform: translateX(24px); opacity: 0; } }
+  }
+  .br-sheet__form { display: flex; flex-direction: column; max-height: inherit; height: 100%; }
+  .br-sheet__head { display: flex; align-items: center; justify-content: space-between; padding: 18px var(--br-gutter) 10px; }
+  .br-sheet__x { width: 44px; height: 44px; border: 0; background: transparent; font-size: 20px; cursor: pointer; }
+  .br-sheet__body { overflow-y: auto; padding: 0 var(--br-gutter) 16px; flex: 1; overscroll-behavior: contain; }
+  .br-sheet__foot { display: flex; gap: 10px; padding: 12px var(--br-gutter) calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--br-line); background: var(--br-bg); }
+  .br-sheet__foot .br-btn { flex: 1; }
+  .br-fs { border: 0; border-bottom: 1px solid var(--br-line); margin: 0; padding: 14px 0; }
+  .br-fs legend, .br-fs summary { font-weight: 600; font-size: 15px; padding: 0; }
+  .br-fs summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; min-height: 40px; }
+  .br-fs summary::-webkit-details-marker { display: none; }
+  .br-fs summary::after { content: '+'; margin-left: auto; font-size: 20px; font-weight: 300; }
+  .br-fs[open] summary::after { content: '−'; }
+  .br-select { width: 100%; min-height: 48px; margin-top: 8px; border: 1px solid var(--br-line); border-radius: 12px; padding: 0 12px; background: #fff; font: inherit; }
+  .br-opts { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px; }
+  .br-opts--sw, .br-opts:has(li:nth-child(4)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .br-opt { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; font-size: 14px; }
+  .br-opt input { width: 20px; height: 20px; accent-color: var(--br-ink); flex: none; }
+  .br-opt i { width: 20px; height: 20px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,.2); flex: none; }
+  .br-opt small { margin-left: auto; color: var(--br-muted); }
+  .br-opt.is-off { opacity: .4; cursor: default; }
+  .br-price { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+  .br-price label { display: grid; gap: 4px; font-size: 12px; color: var(--br-muted); }
+  .br-price input { min-height: 48px; border: 1px solid var(--br-line); border-radius: 12px; padding: 0 12px; font: inherit; color: var(--br-ink); background: #fff; }
+</style>
+
+<script>
+  (() => {
+    const root = document.getElementById('br-cat-{{ section.id }}');
+    if (!root || root.dataset.ready) return;
+    root.dataset.ready = '1';
+    const dlg = root.querySelector('dialog');
+    root.querySelector('[data-open-filters]')?.addEventListener('click', () => dlg.showModal());
+    dlg.querySelector('[data-close]').addEventListener('click', () => dlg.close());
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+    // El formulario no envía campos de precio vacíos (URL limpia)
+    dlg.querySelector('form').addEventListener('submit', (e) => {
+      e.target.querySelectorAll('.br-price input').forEach((i) => { if (!i.value) i.disabled = true; });
+    });
+    // «Cargar más»: añade la página siguiente con la API de secciones (sin recargar)
+    root.addEventListener('click', async (e) => {
+      const a = e.target.closest('[data-more]');
+      if (!a) return;
+      e.preventDefault();
+      a.setAttribute('aria-busy', 'true');
+      a.textContent = 'Cargando…';
+      try {
+        const url = new URL(a.href, location.href);
+        url.searchParams.set('section_id', root.dataset.section);
+        const html = await (await fetch(url)).text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const items = doc.querySelectorAll('[data-grid] > li');
+        root.querySelector('[data-grid]').append(...items);
+        const next = doc.querySelector('[data-more]');
+        const prog = doc.querySelector('[data-progress]');
+        if (next) {
+          a.href = next.href;
+          a.textContent = 'Cargar más';
+          a.removeAttribute('aria-busy');
+          if (prog) root.querySelector('[data-progress]').textContent = prog.textContent;
+        } else root.querySelector('.br-cat__more').remove();
+      } catch {
+        location.href = a.href;
+      }
+    });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "BR · Catálogo",
+  "tag": "div",
+  "settings": [
+    { "type": "range", "id": "per_page", "label": "Productos por carga", "min": 8, "max": 48, "step": 4, "default": 16 },
+    { "type": "select", "id": "columns_desktop", "label": "Columnas en escritorio", "options": [{ "value": "3", "label": "3" }, { "value": "4", "label": "4" }], "default": "4" }
+  ]
+}
+{% endschema %}

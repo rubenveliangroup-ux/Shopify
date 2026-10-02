@@ -13,6 +13,7 @@ const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawin
 r.setSize(S, S);
 r.setClearColor(0x000000, 0);
 r.toneMapping = STUDIO_LIGHTS.toneMapping;
+r.toneMappingExposure = STUDIO_LIGHTS.exposure;
 document.body.appendChild(r.domElement);
 const scene = new THREE.Scene();
 scene.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), 0.04).texture;

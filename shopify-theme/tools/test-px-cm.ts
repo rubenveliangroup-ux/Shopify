@@ -73,7 +73,9 @@ for (const [talla, row] of Object.entries(medidas)) {
 console.log(fails ? `\n${fails} fallos` : '\npx→cm correcto en todas las tallas (diferencia de frente < 0,5 mm)');
 process.exit(fails ? 1 : 0);
 
-function uvToWorld(geo: THREE.BufferGeometry, u: number, v: number): THREE.Vector3 | null {
+function uvToWorld(indexed: THREE.BufferGeometry, u: number, v: number): THREE.Vector3 | null {
+  // projectDesigns devuelve la geometría indexada (vértices unidos para las tangentes)
+  const geo = indexed.index ? indexed.toNonIndexed() : indexed;
   const p = geo.attributes.position;
   const t = geo.attributes.uv;
   let best: THREE.Vector3 | null = null;

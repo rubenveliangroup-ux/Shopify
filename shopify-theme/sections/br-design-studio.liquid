@@ -15,6 +15,8 @@
   if model_url == blank
     assign model_url = 'br-sudadera.glb' | asset_url
   endif
+  # Producto técnico oculto para subir archivos al CDN de Shopify («Enviar mi diseño»)
+  assign upload_variant = all_products['br-subida-archivos'].selected_or_first_available_variant
 -%}
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,6 +25,27 @@
 {{ 'br-studio.css' | asset_url | stylesheet_tag }}
 
 <div class="br-studio-section" style="padding-block: {{ section.settings.padding_top }}px {{ section.settings.padding_bottom }}px;">
+  {%- comment -%}
+    «Enviar mi diseño»: formulario de contacto de Shopify que rellena el estudio (resumen + enlaces
+    a los archivos) y envía. Llega al email de la tienda (Ajustes > Notificaciones > Email del remitente).
+  {%- endcomment -%}
+  {%- form 'contact', id: 'br-send-form', class: 'br-send-form' -%}
+    {%- if form.posted_successfully? -%}
+      <div class="br-send-ok" role="status" tabindex="-1">
+        <strong>¡Diseño enviado!</strong>
+        <span>Lo hemos recibido con tu resumen y la vista previa. Te escribiremos a tu email con el boceto y el precio, normalmente en 24-48 h laborables. Si quieres añadir algo, responde a nuestro email.</span>
+      </div>
+    {%- elsif form.errors -%}
+      <div class="br-send-err" role="alert">No se pudo enviar el diseño: {{ form.errors | default_errors }}</div>
+    {%- endif -%}
+    <input type="hidden" name="contact[Origen]" value="Diseña tu prenda · Enviar mi diseño">
+  {%- endform -%}
+  <style>
+    .br-send-form { max-width: 72rem; margin: 0 auto; padding: 0 1rem; }
+    .br-send-ok, .br-send-err { display: grid; gap: 4px; margin: 0 0 16px; padding: 16px 18px; border-radius: 16px; font-size: 15px; line-height: 1.45; }
+    .br-send-ok { background: #e4efe6; color: #1f4a2c; }
+    .br-send-err { background: #f6e1df; color: #7a1f2b; }
+  </style>
   <script type="application/json" id="br-studio-config">
     {
       "price": {{ product.price | money | json }},
@@ -32,14 +55,22 @@
       "colorMode": {{ section.settings.modo_color_prenda | json }},
       "stockColors": {{ section.settings.colores_stock | json }},
       "threadPaletteUrl": {{ 'br-hilos.json' | asset_url | json }},
+      "workerUrl": {{ 'br-bordado-worker.js' | asset_url | json }},
+      "send": { "formId": "br-send-form", "uploadVariantId": {{ upload_variant.id | default: 'null' }}, "root": {{ routes.root_url | json }} },
       "modelUrl": {{ model_url | json }},
       "liteImages": { "delante": {{ 'br-prenda-delante.webp' | asset_url | json }}, "detras": {{ 'br-prenda-detras.webp' | asset_url | json }} },
       "sizeChart": {% render 'br-medidas', formato: 'json' %},
       "embroidery": {
         "enabled": {{ section.settings.calc_enabled | json }},
         "puntadasPorCm2": {{ section.settings.puntadas_por_cm2 | json }},
+        "puntadasPorCmLinea": {{ section.settings.puntadas_por_cm_linea | json }},
         "puntadasPorCmBorde": {{ section.settings.puntadas_por_cm_borde | json }},
+        "anchoMaxLineaMm": {{ section.settings.ancho_max_linea_mm | json }},
         "margenSeguridad": {{ section.settings.margen_seguridad | divided_by: 100.0 | json }},
+        "margenError": {{ section.settings.margen_error | divided_by: 100.0 | json }},
+        "umbralPresupuesto": {{ section.settings.umbral_presupuesto | json }},
+        "bastidorAnchoCm": {{ section.settings.bastidor_ancho | json }},
+        "bastidorAltoCm": {{ section.settings.bastidor_alto | json }},
         "costePorMil": {{ section.settings.coste_por_mil | json }},
         "multiplicadorMargen": {{ section.settings.multiplicador_margen | json }},
         "cuotaFija": {{ section.settings.cuota_fija | json }},
@@ -97,10 +128,16 @@
     { "type": "checkbox", "id": "calc_enabled", "label": "Activar calculadora de bordado", "default": true },
     { "type": "product", "id": "extra_product", "label": "Producto \"Extra de bordado\"", "info": "Una variante por tramo, en el mismo orden que los tramos." },
     { "type": "product", "id": "color_product", "label": "Producto \"Color adicional de bordado\"" },
-    { "type": "number", "id": "puntadas_por_cm2", "label": "Puntadas por cm² (calibrar)", "default": 150 },
-    { "type": "number", "id": "puntadas_por_cm_borde", "label": "Puntadas extra por cm de contorno", "default": 5 },
+    { "type": "number", "id": "puntadas_por_cm2", "label": "PUNTADAS_POR_CM2: puntadas por cm² de relleno (calibrar)", "default": 150 },
+    { "type": "number", "id": "puntadas_por_cm_linea", "label": "PUNTADAS_POR_CM_LINEA: puntadas por cm de línea (calibrar)", "default": 25, "info": "Trazos más estrechos que el ancho máximo de línea (satén)." },
+    { "type": "number", "id": "puntadas_por_cm_borde", "label": "Puntadas extra por cm de borde de los rellenos", "default": 5 },
+    { "type": "number", "id": "ancho_max_linea_mm", "label": "Ancho máximo de línea (mm)", "default": 4, "info": "Más estrecho: línea en satén. Más ancho: relleno." },
     { "type": "range", "id": "margen_seguridad", "label": "Margen de seguridad sobre puntadas", "min": 0, "max": 50, "step": 1, "unit": "%", "default": 10 },
-    { "type": "text", "id": "tramos", "label": "Topes de los tramos (puntadas)", "default": "5000, 10000, 15000, 20000", "info": "Por encima del último: diseño sujeto a presupuesto." },
+    { "type": "range", "id": "margen_error", "label": "MARGEN_ERROR: amplitud del rango mostrado", "min": 0, "max": 50, "step": 1, "unit": "%", "default": 20 },
+    { "type": "number", "id": "umbral_presupuesto", "label": "Puntadas a partir de las que se pide presupuesto", "default": 50000 },
+    { "type": "number", "id": "bastidor_ancho", "label": "Área máxima de bordado: ancho (cm)", "default": 30 },
+    { "type": "number", "id": "bastidor_alto", "label": "Área máxima de bordado: alto (cm)", "default": 30 },
+    { "type": "text", "id": "tramos", "label": "Topes de los tramos (puntadas)", "default": "5000, 10000, 15000, 20000, 30000, 40000, 50000", "info": "Una variante de «Extra de bordado» por tramo. Por encima del último (o del umbral): presupuesto." },
     { "type": "text", "id": "coste_por_mil", "label": "Coste por 1.000 puntadas (€)", "default": "0,75" },
     { "type": "text", "id": "multiplicador_margen", "label": "Multiplicador de margen", "default": "1" },
     { "type": "text", "id": "cuota_fija", "label": "Cuota fija de montaje y digitalización (€)", "default": "5" },

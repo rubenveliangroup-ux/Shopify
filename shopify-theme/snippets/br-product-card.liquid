@@ -1,0 +1,69 @@
+{%- doc -%}
+  Tarjeta de producto de BR (portada y catálogo): foto 4:5 sin saltos al cargar, segunda foto
+  al pasar el ratón (solo escritorio), etiquetas, nombre y precio.
+
+  Etiquetas («Nuevo», «Edición limitada»): campo del producto `custom.etiqueta` (Productos >
+  ficha > Metacampos). Respaldo: etiquetas (tags) `nuevo` y `edicion-limitada`.
+
+  @param {product} product - Producto
+  @param {boolean} [eager] - Cargar la imagen sin diferir (primera fila visible)
+  @param {string} [sizes] - Atributo sizes de la imagen
+{%- enddoc -%}
+{%- liquid
+  assign sizes = sizes | default: '(min-width: 1200px) 25vw, (min-width: 750px) 33vw, 50vw'
+  assign img1 = product.featured_media.preview_image | default: product.featured_image
+  assign img2 = product.media[1].preview_image
+  assign loading = 'lazy'
+  if eager
+    assign loading = 'eager'
+  endif
+
+  assign etiquetas = ''
+  assign meta = product.metafields.custom.etiqueta.value
+  if meta != blank
+    if meta.first
+      assign etiquetas = meta | join: '|'
+    else
+      assign etiquetas = meta
+    endif
+  endif
+  if etiquetas == blank
+    if product.tags contains 'nuevo'
+      assign etiquetas = 'Nuevo'
+    endif
+    if product.tags contains 'edicion-limitada'
+      if etiquetas != blank
+        assign etiquetas = etiquetas | append: '|'
+      endif
+      assign etiquetas = etiquetas | append: 'Edición limitada'
+    endif
+  endif
+-%}
+<a class="br-card" href="{{ product.url }}">
+  <div class="br-card__media">
+    {%- if img1 -%}
+      {{ img1 | image_url: width: 900 | image_tag: loading: loading, widths: '300, 450, 600, 750, 900', sizes: sizes, alt: product.title }}
+      {%- if img2 -%}
+        {{ img2 | image_url: width: 900 | image_tag: loading: 'lazy', widths: '300, 450, 600, 750, 900', sizes: sizes, alt: '', class: 'br-card__img2', aria-hidden: 'true' }}
+      {%- endif -%}
+    {%- else -%}
+      {{ 'product-apparel-1' | placeholder_svg_tag: 'br-card__ph' }}
+    {%- endif -%}
+    {%- if etiquetas != blank or product.available == false -%}
+      <div class="br-card__badges">
+        {%- assign lista = etiquetas | split: '|' -%}
+        {%- for e in lista -%}
+          {%- assign e = e | strip -%}
+          {%- if e != blank -%}<span class="br-badge{% if e contains 'imitada' %} br-badge--dark{% endif %}">{{ e }}</span>{%- endif -%}
+        {%- endfor -%}
+        {%- unless product.available -%}<span class="br-badge br-badge--muted">Agotado</span>{%- endunless -%}
+      </div>
+    {%- endif -%}
+  </div>
+  <h3 class="br-card__title">{{ product.title }}</h3>
+  <p class="br-card__price">
+    {%- if product.price_varies -%}Desde {% endif -%}
+    {{ product.price | money }}
+    {%- if product.compare_at_price > product.price -%}<s>{{ product.compare_at_price | money }}</s>{%- endif -%}
+  </p>
+</a>

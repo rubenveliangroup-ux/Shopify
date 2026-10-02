@@ -1,0 +1,39 @@
+{%- comment -%} BR · Historia de marca: imagen + texto editable (marcadores visibles si falta contenido). {%- endcomment -%}
+{{ 'br-landing.css' | asset_url | stylesheet_tag }}
+{%- assign s = section.settings -%}
+<section class="br br-section">
+  <div class="br-wrap">
+    <div class="br-story{% if s.image_right %} br-story--right{% endif %}">
+      <div class="br-story__media">
+        {%- if s.image != blank -%}
+          {{ s.image | image_url: width: 1400 | image_tag: loading: 'lazy', widths: '400, 700, 1000, 1400', sizes: '(min-width: 990px) 50vw, 100vw', alt: s.image.alt }}
+        {%- else -%}
+          <div class="br-ph-box">[Foto pendiente: el taller, las manos bordando o la máquina con una prenda. Vertical 4:5, mínimo 1400 px.]</div>
+        {%- endif -%}
+      </div>
+      <div>
+        {%- if s.eyebrow != blank -%}<p class="br-eyebrow">{{ s.eyebrow }}</p>{%- endif -%}
+        <h2 class="br-h2">{{ s.heading }}</h2>
+        <div class="br-rte" style="margin-top: 24px;">{{ s.text }}</div>
+        {%- if s.button_label != blank -%}<div class="br-btns"><a class="br-btn br-btn--ghost" href="{{ s.button_link }}">{{ s.button_label }}</a></div>{%- endif -%}
+      </div>
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "BR · Nuestra historia",
+  "tag": "div",
+  "settings": [
+    { "type": "image_picker", "id": "image", "label": "Imagen" },
+    { "type": "checkbox", "id": "image_right", "label": "Imagen a la derecha (escritorio)", "default": false },
+    { "type": "text", "id": "eyebrow", "label": "Antetítulo", "default": "Hecho en Pontevedra" },
+    { "type": "text", "id": "heading", "label": "Título", "default": "Bordado gallego, puntada a puntada" },
+    { "type": "richtext", "id": "text", "label": "Texto", "default": "<p>BR nace en Pontevedra para llevar el bordado gallego a la ropa de todos los días. Cada pieza se borda en nuestro taller y se revisa una a una antes de salir.</p><p><span class=\"br-ph\">[Completa con vuestra historia: quién borda, desde cuándo, qué os inspira, qué materiales usáis.]</span></p>" },
+    { "type": "text", "id": "button_label", "label": "Botón (opcional)" },
+    { "type": "url", "id": "button_link", "label": "Enlace del botón" }
+  ],
+  "presets": [{ "name": "BR · Nuestra historia" }]
+}
+{% endschema %}

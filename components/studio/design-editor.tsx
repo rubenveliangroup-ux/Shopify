@@ -19,9 +19,13 @@ export type EditorHandle = {
   getSize: () => { w: number; h: number } | null;
   /**
    * Diseño recortado a su contenido, a resolución de análisis (≈ cmPerPx por píxel),
-   * con el fondo blanco de las imágenes subidas eliminado. Para la calculadora de bordado.
+   * con el fondo blanco de las imágenes subidas eliminado, y su sitio en el lienzo. Para el
+   * hilado del bordado (estimación y texturas).
    */
-  renderForAnalysis: (cmPerPx: number, maxPx: number) => { canvas: HTMLCanvasElement; cmPerPx: number; whiteRemoved: boolean } | null;
+  renderForAnalysis: (
+    cmPerPx: number,
+    maxPx: number
+  ) => { canvas: HTMLCanvasElement; cmPerPx: number; whiteRemoved: boolean; placement: { x: number; y: number; w: number; h: number } } | null;
 };
 
 type Props = {
@@ -248,7 +252,14 @@ export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEdito
       } finally {
         exporting.current = false;
       }
-      return { canvas: out, cmPerPx: CM_PER_PX / scale, whiteRemoved };
+      // Sitio de la imagen analizada dentro del lienzo (fracciones), con el píxel de margen
+      const placement = {
+        x: (left - 1 / scale) / EDITOR_SIZE,
+        y: (top - 1 / scale) / EDITOR_SIZE,
+        w: out.width / scale / EDITOR_SIZE,
+        h: out.height / scale / EDITOR_SIZE
+      };
+      return { canvas: out, cmPerPx: CM_PER_PX / scale, whiteRemoved, placement };
     },
     getSize() {
       const objs = fc.current?.getObjects() ?? [];

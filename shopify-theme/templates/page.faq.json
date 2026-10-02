@@ -1,0 +1,9 @@
+{
+  "sections": {
+    "faq": {
+      "type": "br-faq",
+      "settings": { "eyebrow": "Ayuda", "heading": "Preguntas frecuentes", "text": "¿No encuentras lo que buscas? Escríbenos desde la página de contacto.", "show_all": true, "open_first": true }
+    }
+  },
+  "order": ["faq"]
+}

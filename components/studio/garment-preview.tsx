@@ -2,7 +2,7 @@
 
 import { Component, Suspense, forwardRef, lazy, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from 'react';
 import { PANEL_IN_LITE, type Side } from './config';
-import { createEmbroideryRelief, type EmbroideryRelief } from './embroidery-normal';
+import type { DesignLayers } from './embroidery-layers';
 import type { ModelInfo, SizeRow } from './garment-glb';
 
 /**
@@ -20,8 +20,8 @@ const Garment3D = lazy(() => import('./garment-3d'));
 type Props = {
   color: string;
   view: Side;
-  front: HTMLCanvasElement;
-  back: HTMLCanvasElement;
+  /** Capas del bordado (color de hilo, relieve, sombra…) de cada lado y su versión. */
+  layers: Record<Side, DesignLayers>;
   version: number;
   modelUrl?: string;
   /** Fotos (render neutro, blanco) delante/detrás con el encuadre LITE_FRAME (config.ts). */
@@ -203,9 +203,8 @@ export function tintGarment(img: HTMLImageElement, hex: string, size: number, cr
 
 const LITE_SIZE = 900;
 
-const LitePreview = forwardRef<PreviewHandle, Props>(function LitePreview({ color, view, front, back, version, liteImages }, ref) {
+const LitePreview = forwardRef<PreviewHandle, Props>(function LitePreview({ color, view, layers, version, liteImages }, ref) {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const relief = useRef<Record<Side, EmbroideryRelief> | null>(null);
   const [garments, setGarments] = useState<Partial<Record<Side, HTMLImageElement>>>({});
   const [failed, setFailed] = useState(false);
 
@@ -229,35 +228,28 @@ const LitePreview = forwardRef<PreviewHandle, Props>(function LitePreview({ colo
     ctx.clearRect(0, 0, S, S);
     const g = garments[side];
     if (g) ctx.drawImage(tintGarment(g, color, S), 0, 0);
-    // El diseño ocupa el rectángulo del lienzo dentro de la foto: mismo tamaño real que en 3D
-    const design = side === 'delante' ? front : back;
-    const r = relief.current?.[side];
+    // El bordado ocupa el rectángulo del lienzo dentro de la foto: mismo tamaño real que en 3D
+    const l = layers[side];
     const x = PANEL_IN_LITE.x * S;
     const y = PANEL_IN_LITE.y * S;
     const w = PANEL_IN_LITE.size * S;
-    if (r) ctx.drawImage(r.shadow, x, y, w, w);
-    ctx.drawImage(design, x, y, w, w);
-    if (r) {
-      // Luces y sombras de las puntadas solo sobre el diseño
-      const tmp = document.createElement('canvas');
-      tmp.width = tmp.height = Math.round(w);
-      const t = tmp.getContext('2d')!;
-      t.drawImage(design, 0, 0, w, w);
-      t.globalCompositeOperation = 'overlay';
-      t.drawImage(r.shade, 0, 0, w, w);
-      t.globalCompositeOperation = 'destination-in';
-      t.drawImage(design, 0, 0, w, w);
-      ctx.drawImage(tmp, x, y);
-    }
+    ctx.drawImage(l.shadow, x, y, w, w);
+    // Hilo + luces y sombras de las puntadas (solo sobre el bordado)
+    const tmp = document.createElement('canvas');
+    tmp.width = tmp.height = Math.round(w);
+    const t = tmp.getContext('2d')!;
+    t.drawImage(l.color, 0, 0, w, w);
+    t.globalCompositeOperation = 'overlay';
+    t.drawImage(l.shade, 0, 0, w, w);
+    t.globalCompositeOperation = 'destination-in';
+    t.drawImage(l.color, 0, 0, w, w);
+    ctx.drawImage(tmp, x, y);
   };
 
   useEffect(() => {
-    if (!relief.current) relief.current = { delante: createEmbroideryRelief(), detras: createEmbroideryRelief() };
-    relief.current.delante.update(front);
-    relief.current.detras.update(back);
     if (canvas.current) draw(view, canvas.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version, color, view, garments, front, back]);
+  }, [version, color, view, garments, layers]);
 
   useImperativeHandle(ref, () => ({
     snapshot: (side) => {

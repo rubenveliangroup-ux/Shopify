@@ -5,8 +5,8 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { Component, Suspense, forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as THREE from 'three';
 import type { Side } from './config';
-import { createEmbroideryRelief } from './embroidery-normal';
-import { GarmentGLB, type DesignLayers, type ModelInfo, type SizeRow } from './garment-glb';
+import type { DesignLayers } from './embroidery-layers';
+import { GarmentGLB, type DesignTextures, type ModelInfo, type SizeRow } from './garment-glb';
 import { STUDIO_LIGHTS } from './garment-material';
 import type { PreviewHandle } from './garment-preview';
 
@@ -19,9 +19,8 @@ export type Garment3DProps = {
   color: string;
   /** Lado que se está editando: la cámara lo muestra. */
   view: Side;
-  /** Lienzos del diseño (delante/detrás) y su versión: cambia cada vez que se redibujan. */
-  front: HTMLCanvasElement;
-  back: HTMLCanvasElement;
+  /** Capas del bordado (delante/detrás) y su versión: cambia cada vez que se redibujan. */
+  layers: Record<Side, DesignLayers>;
   version: number;
   modelUrl: string;
   /** Talla que se muestra y medidas por talla (tabla de medidas). */
@@ -48,46 +47,29 @@ function canvasTexture(c: HTMLCanvasElement, srgb: boolean) {
   return t;
 }
 
-/** Texturas del diseño + relieve de bordado (normal map y sombra) de cada lado. */
-function useDesignLayers(front: HTMLCanvasElement, back: HTMLCanvasElement, version: number) {
-  const layers = useMemo(() => {
-    const make = (src: HTMLCanvasElement) => {
-      const relief = createEmbroideryRelief();
-      return {
-        relief,
-        layer: { map: canvasTexture(src, true), normalMap: canvasTexture(relief.normal, false), shadowMap: canvasTexture(relief.shadow, true) } as DesignLayers
-      };
-    };
-    return { delante: make(front), detras: make(back) };
-  }, [front, back]);
+/** Texturas de las capas del bordado de cada lado; se suben a la GPU cuando cambia la versión. */
+function useDesignTextures(layers: Record<Side, DesignLayers>, version: number) {
+  const tex = useMemo(() => {
+    const make = (l: DesignLayers): DesignTextures => ({
+      map: canvasTexture(l.color, true),
+      normalMap: canvasTexture(l.normal, false),
+      anisoMap: canvasTexture(l.aniso, false),
+      shadowMap: canvasTexture(l.shadow, true)
+    });
+    return { delante: make(layers.delante), detras: make(layers.detras) };
+  }, [layers]);
   const invalidate = useThree((s) => s.invalidate);
   useEffect(() => {
-    for (const s of ['delante', 'detras'] as const) layers[s].layer.map.needsUpdate = true;
+    for (const s of ['delante', 'detras'] as const) for (const t of Object.values(tex[s])) t.needsUpdate = true;
     invalidate();
-    // El relieve es más caro: se rehace cuando el cliente deja de mover el diseño
-    const t = setTimeout(() => {
-      for (const s of ['delante', 'detras'] as const) {
-        const { relief, layer } = layers[s];
-        relief.update(s === 'delante' ? front : back);
-        layer.normalMap.needsUpdate = true;
-        layer.shadowMap.needsUpdate = true;
-      }
-      invalidate();
-    }, 180);
-    return () => clearTimeout(t);
-  }, [version, layers, front, back, invalidate]);
-  useEffect(
-    () => () => {
-      for (const s of ['delante', 'detras'] as const) for (const t of Object.values(layers[s].layer)) t.dispose();
-    },
-    [layers]
-  );
-  return useMemo(() => ({ delante: layers.delante.layer, detras: layers.detras.layer }), [layers]);
+  }, [version, tex, invalidate]);
+  useEffect(() => () => ['delante', 'detras'].forEach((s) => Object.values(tex[s as Side]).forEach((t) => t.dispose())), [tex]);
+  return tex;
 }
 
 function Scene(props: Garment3DProps & { handleRef: { current: PreviewHandle | null }; spin: boolean; onSpinStop: () => void }) {
-  const { color, front, back, version, modelUrl, size, sizes, onModelReady, onSilhouettes, onFail, lowPower, handleRef, spin, onSpinStop } = props;
-  const design = useDesignLayers(front, back, version);
+  const { color, layers, version, modelUrl, size, sizes, onModelReady, onSilhouettes, onFail, lowPower, handleRef, spin, onSpinStop } = props;
+  const design = useDesignTextures(layers, version);
   const [loaded, setLoaded] = useState(false);
   return (
     <>
@@ -208,6 +190,7 @@ const Garment3D = forwardRef<PreviewHandle, Garment3DProps>(function Garment3D(p
       gl={{ preserveDrawingBuffer: true, antialias: !lowPower, powerPreference: lowPower ? 'low-power' : 'default' }}
       onCreated={({ gl }) => {
         gl.toneMapping = STUDIO_LIGHTS.toneMapping;
+        gl.toneMappingExposure = STUDIO_LIGHTS.exposure;
       }}
       aria-label="Vista 3D de la prenda"
     >

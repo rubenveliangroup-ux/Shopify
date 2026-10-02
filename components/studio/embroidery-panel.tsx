@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { hexToLab } from '../color/color-math';
-import { nearestThread, threadLabel, type Thread } from '../color/threads';
+import { deltaE2000, hexToLab } from '../color/color-math';
+import { threadLabel } from '../color/threads';
 import type { Side } from './config';
 import { unionColors, type ColorStat, type DesignAnalysis } from './embroidery-estimate';
 import { fmtEur, fmtInt, formulaTierPrice, quote, round2, type EmbroideryPricing, type Quote } from './embroidery-pricing';
@@ -13,65 +13,74 @@ export type EmbroideryEstimate = {
   /** Puntadas estimadas con margen de seguridad (las que deciden el tramo). */
   stitches: number;
   rawStitches: number;
+  /** Rango orientativo (± margen de error) alrededor de la estimación. */
+  range: [number, number];
   colors: ColorStat[];
   quote: Quote;
+  /** El rango alcanza otro tramo distinto del estimado. */
+  mayChangeTier: boolean;
   warnings: string[];
 };
 
 const sideLabel: Record<Side, string> = { delante: 'delante', detras: 'detrás' };
 
-/** Asigna a cada color su hilo real más cercano; dos colores con el mismo hilo cuentan como uno. */
-export function mapToThreads(colors: ColorStat[], threads: Thread[]): ColorStat[] {
-  const byThread = new Map<string, ColorStat>();
-  for (const c of colors) {
-    const t = nearestThread(c.hex, threads);
-    const key = `${t.code}|${t.hex}`;
-    const prev = byThread.get(key);
-    if (prev) {
-      prev.areaCm2 += c.areaCm2;
-      prev.share += c.share;
-    } else byThread.set(key, { hex: t.hex, lab: hexToLab(t.hex), areaCm2: c.areaCm2, share: c.share, thread: t });
-  }
-  return [...byThread.values()].sort((a, b) => b.share - a.share);
-}
-
-/** Combina delante + detrás: puntadas sumadas y paleta de hilos común. */
-export function buildEstimate(p: EmbroideryPricing, perSide: Record<Side, DesignAnalysis | null>, threads?: Thread[]): EmbroideryEstimate {
+/**
+ * Combina delante + detrás: puntadas sumadas (los colores ya vienen como hilos reales del
+ * hilado: dos colores con el mismo hilo son uno) y avisos.
+ */
+export function buildEstimate(p: EmbroideryPricing, perSide: Record<Side, DesignAnalysis | null>, garmentHex?: string): EmbroideryEstimate {
   const used = (Object.keys(perSide) as Side[]).filter((s) => perSide[s]);
   const rawStitches = used.reduce((a, s) => a + perSide[s]!.rawStitches, 0);
   const stitches = Math.round(rawStitches * (1 + p.margenSeguridad));
-  const union = unionColors(used.map((s) => perSide[s]!.colors));
-  const colors = threads?.length ? mapToThreads(union, threads) : union;
+  const colors = unionColors(used.map((s) => perSide[s]!.colors));
+  const threadCount = Math.max(colors.length, ...used.map((s) => perSide[s]!.threadCount));
+  const range: [number, number] = [Math.round(stitches * (1 - p.margenError)), Math.round(stitches * (1 + p.margenError))];
+  const q = quote(p, stitches, threadCount);
+  const tierOf = (n: number) => (n > p.umbralPresupuesto ? -1 : p.tramos.findIndex((t) => n <= t));
+  const mayChangeTier = q.kind === 'priced' && (tierOf(range[0]) !== q.tierIndex || tierOf(range[1]) !== q.tierIndex);
   const warnings: string[] = [];
   for (const s of used) {
     const a = perSide[s]!;
+    if (a.widthCm > p.bastidorAnchoCm + 0.05 || a.heightCm > p.bastidorAltoCm + 0.05)
+      warnings.push(
+        `El diseño de ${sideLabel[s]} mide ≈ ${a.widthCm.toFixed(1)} × ${a.heightCm.toFixed(1)} cm y supera el área máxima de bordado (${p.bastidorAnchoCm} × ${p.bastidorAltoCm} cm). Redúcelo o lo bordaremos en varias partes (consúltanos).`
+      );
     if (a.tooSmall)
       warnings.push(`El diseño de ${sideLabel[s]} es muy pequeño (≈ ${a.widthCm.toFixed(1)} × ${a.heightCm.toFixed(1)} cm): los detalles podrían no apreciarse bordados.`);
     if (a.whiteBackgroundRemoved)
       warnings.push(`No contamos el fondo blanco de tu imagen (${sideLabel[s]}) como bordado. Si quieres ese blanco bordado, indícalo en las notas.`);
     if (a.thinLines)
-      warnings.push(`El diseño de ${sideLabel[s]} tiene líneas de menos de ${p.grosorMinimoMm} mm: son demasiado finas para bordar y tendremos que engrosarlas o simplificarlas.`);
+      warnings.push(`El diseño de ${sideLabel[s]} tiene líneas de menos de ${p.grosorMinimoMm} mm: son demasiado finas para bordar bien y tendremos que engrosarlas o simplificarlas.`);
   }
-  return { perSide, stitches, rawStitches, colors, quote: quote(p, stitches, colors.length), warnings };
+  if (garmentHex) {
+    const g = hexToLab(garmentHex);
+    const low = colors.filter((c) => deltaE2000(c.lab, g) < p.contrasteMinimo);
+    for (const c of low)
+      warnings.push(`El hilo ${c.thread ? threadLabel(c.thread) : c.hex} casi no se distingue del color de la prenda: elige otro color de hilo o de prenda si quieres que destaque.`);
+  }
+  return { perSide, stitches, rawStitches, range, colors, quote: q, mayChangeTier, warnings };
 }
 
 export function EmbroideryPanel({
   pricing,
   estimate,
   busy,
-  calibrate
+  calibrate,
+  onRequestQuote
 }: {
   pricing: EmbroideryPricing;
   estimate: EmbroideryEstimate | null;
   busy: boolean;
   calibrate: boolean;
+  /** Botón «Enviar mi diseño» cuando hace falta presupuesto personalizado. */
+  onRequestQuote?: () => void;
 }) {
   const q = estimate?.quote ?? { kind: 'empty' as const };
 
   return (
     <div className="rounded-2xl bg-lino p-4 ring-1 ring-tinta/10" aria-live="polite">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold">Extra de bordado</p>
+        <p className="text-sm font-semibold">Bordado: cálculo aproximado</p>
         {busy && <span className="text-xs text-tinta-500">Calculando…</span>}
       </div>
 
@@ -79,12 +88,15 @@ export function EmbroideryPanel({
         <p className="mt-2 text-sm text-tinta-500">Sube o coloca tu diseño y calcularemos aquí el precio del bordado.</p>
       ) : (
         <>
-          <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
+          <p className="mt-3 text-center text-sm">
+            Entre <b className="tabular-nums">{fmtInt(estimate!.range[0])}</b> y <b className="tabular-nums">{fmtInt(estimate!.range[1])}</b> puntadas
+          </p>
+          <dl className="mt-2 grid grid-cols-3 gap-2 text-center">
             <Stat label="Puntadas aprox." value={`≈ ${fmtInt(estimate!.stitches)}`} />
             <Stat
               label="Hilos"
-              value={estimate!.colors.length > pricing.maxColores ? `+${pricing.maxColores}` : `${estimate!.colors.length}/${pricing.maxColores}`}
-              warn={estimate!.colors.length > pricing.maxColores}
+              value={q.kind === 'too-many-colors' ? `${q.colors}/${pricing.maxColores}` : `${estimate!.colors.length}/${pricing.maxColores}`}
+              warn={q.kind === 'too-many-colors'}
             />
             <Stat label="Tramo" value={q.kind === 'priced' ? String(q.tierIndex + 1) : '—'} />
           </dl>
@@ -107,7 +119,10 @@ export function EmbroideryPanel({
                 label={q.extraColors ? `${q.extraColors} color${q.extraColors > 1 ? 'es' : ''} adicional${q.extraColors > 1 ? 'es' : ''} × ${fmtEur(q.colorUnitPrice)}` : 'Colores adicionales'}
                 value={fmtEur(q.colorsPrice)}
               />
-              <Row label="Extra de bordado" value={fmtEur(q.total)} strong />
+              <Row label="Precio estimado del bordado" value={fmtEur(q.total)} strong />
+              {estimate!.mayChangeTier && (
+                <p className="pt-1 text-xs text-tinta-500">Por el margen de error, el diseño podría quedar en el tramo de al lado.</p>
+              )}
             </dl>
           )}
           {q.kind === 'too-many-colors' && (
@@ -117,19 +132,24 @@ export function EmbroideryPanel({
             </p>
           )}
           {q.kind === 'quote-required' && (
-            <p className="mt-3 rounded-xl bg-oro-100 px-3 py-2 text-sm">
-              Diseño sujeto a presupuesto: supera las {fmtInt(pricing.tramos[pricing.tramos.length - 1])} puntadas. Puedes enviarnos la consulta
-              sin pagar el extra y te diremos el precio antes de producir.
-            </p>
+            <div className="mt-3 rounded-xl bg-oro-100 px-3 py-2 text-sm">
+              <p>
+                <b>Presupuesto personalizado.</b> Tu diseño supera las {fmtInt(Math.min(pricing.umbralPresupuesto, pricing.tramos[pricing.tramos.length - 1]))}{' '}
+                puntadas: lo revisamos y te decimos el precio antes de producir.
+              </p>
+              {onRequestQuote && (
+                <button type="button" onClick={onRequestQuote} className="btn-primary mt-2 w-full py-2.5 text-sm">
+                  Enviar mi diseño para presupuesto
+                </button>
+              )}
+            </div>
           )}
 
           {estimate!.warnings.map((w) => (
             <p key={w} className="mt-2 rounded-xl bg-oro-100 px-3 py-2 text-xs">⚠︎ {w}</p>
           ))}
 
-          <p className="mt-3 text-xs text-tinta-500">
-            Estimación sujeta a revisión antes de producir. Si el diseño necesita otro tramo, te avisaremos antes de empezar.
-          </p>
+          <p className="mt-3 text-xs font-medium text-tinta-700">Cálculo aproximado. El precio final se confirma tras digitalizar el diseño.</p>
         </>
       )}
 
@@ -158,7 +178,7 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
 
 // ------------------------------------------------------------------ calibración
 
-type Sample = { name: string; real: number; areaCm2: number; edgeCm: number };
+type Sample = { name: string; real: number; areaCm2: number; edgeCm: number; lineCm?: number };
 const CAL_KEY = 'br-calibracion-bordado';
 
 /**
@@ -188,9 +208,11 @@ function Calibration({ pricing, estimate }: { pricing: EmbroideryPricing; estima
   };
 
   const sides = estimate ? (Object.values(estimate.perSide).filter(Boolean) as DesignAnalysis[]) : [];
-  const areaCm2 = sides.reduce((a, s) => a + s.areaCm2, 0);
-  const edgeCm = sides.reduce((a, s) => a + s.edgeCm, 0);
-  const implied = (s: Sample) => (s.real - s.edgeCm * pricing.puntadasPorCmBorde) / s.areaCm2;
+  // Para calibrar el relleno: área de relleno, su borde y lo que suman las líneas con la constante actual
+  const areaCm2 = sides.reduce((a, s) => a + s.fillAreaCm2, 0);
+  const edgeCm = sides.reduce((a, s) => a + s.fillEdgeCm, 0);
+  const lineCm = sides.reduce((a, s) => a + s.lineLengthCm, 0);
+  const implied = (s: Sample) => (s.real - s.edgeCm * pricing.puntadasPorCmBorde - (s.lineCm ?? 0) * pricing.puntadasPorCmLinea) / s.areaCm2;
   const values = samples.map(implied).sort((a, b) => a - b);
   const median = values.length ? values[Math.floor((values.length - 1) / 2)] : null;
 
@@ -198,8 +220,9 @@ function Calibration({ pricing, estimate }: { pricing: EmbroideryPricing; estima
     <div className="mt-4 space-y-3 border-t border-dashed border-tinta/30 pt-4 text-xs">
       <p className="font-semibold uppercase tracking-wider text-hilo">Modo calibración</p>
       <p>
-        Diseño actual: área bordada <b>{areaCm2.toFixed(1)} cm²</b> · contorno <b>{edgeCm.toFixed(1)} cm</b> · puntadas sin margen{' '}
-        <b>{fmtInt(estimate?.rawStitches ?? 0)}</b> (con {pricing.puntadasPorCm2} pt/cm² y {pricing.puntadasPorCmBorde} pt/cm de borde).
+        Diseño actual: relleno <b>{areaCm2.toFixed(1)} cm²</b> · borde del relleno <b>{edgeCm.toFixed(1)} cm</b> · líneas{' '}
+        <b>{lineCm.toFixed(1)} cm</b> · puntadas sin margen <b>{fmtInt(estimate?.rawStitches ?? 0)}</b> (con {pricing.puntadasPorCm2} pt/cm²,{' '}
+        {pricing.puntadasPorCmBorde} pt/cm de borde y {pricing.puntadasPorCmLinea} pt/cm de línea).
       </p>
       <div className="flex flex-wrap gap-2">
         <input className="field !py-1.5 !text-xs" style={{ maxWidth: 160 }} placeholder="Nombre del diseño" value={name} onChange={(e) => setName(e.target.value)} />
@@ -208,7 +231,7 @@ function Calibration({ pricing, estimate }: { pricing: EmbroideryPricing; estima
           className="rounded-full border border-tinta/20 px-3 py-1.5 disabled:opacity-40"
           disabled={!areaCm2 || !Number(real)}
           onClick={() => {
-            save([...samples, { name: name || `Diseño ${samples.length + 1}`, real: Number(real), areaCm2, edgeCm }]);
+            save([...samples, { name: name || `Diseño ${samples.length + 1}`, real: Number(real), areaCm2, edgeCm, lineCm }]);
             setName('');
             setReal('');
           }}
@@ -220,7 +243,7 @@ function Calibration({ pricing, estimate }: { pricing: EmbroideryPricing; estima
         <table className="w-full text-left">
           <thead>
             <tr className="text-tinta-500">
-              <th>Diseño</th><th>Reales</th><th>cm²</th><th>pt/cm²</th><th />
+              <th>Diseño</th><th>Reales</th><th>Relleno cm²</th><th>Líneas cm</th><th>pt/cm²</th><th />
             </tr>
           </thead>
           <tbody>
@@ -229,6 +252,7 @@ function Calibration({ pricing, estimate }: { pricing: EmbroideryPricing; estima
                 <td>{s.name}</td>
                 <td>{fmtInt(s.real)}</td>
                 <td>{s.areaCm2.toFixed(1)}</td>
+                <td>{(s.lineCm ?? 0).toFixed(1)}</td>
                 <td>{implied(s).toFixed(0)}</td>
                 <td><button onClick={() => save(samples.filter((_, j) => j !== i))}>✕</button></td>
               </tr>

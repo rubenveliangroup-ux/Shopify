@@ -8,10 +8,11 @@ import { AVISO_COLOR_LIBRE, COLORES_HABITUALES, COLORES_STOCK, MODO_COLOR_PRENDA
 import { DEFAULT_THREADS, loadThreadPalette, type Thread } from '../color/threads';
 import { garments, sides, TEXTURE_SIZE, type GarmentType, type Side } from './config';
 import { DesignEditor, type EditorHandle } from './design-editor';
-import { applyEmbroidery } from './embroidery';
-import { analyzeDesign, type DesignAnalysis } from './embroidery-estimate';
+import { createThreadizer } from './embroidery-client';
+import type { DesignAnalysis } from './embroidery-estimate';
+import { clearLayers, createLayers, drawFlat, drawThreadMaps } from './embroidery-layers';
 import { buildEstimate, EmbroideryPanel, type EmbroideryEstimate } from './embroidery-panel';
-import type { EmbroideryPricing } from './embroidery-pricing';
+import { DEFAULT_EMBROIDERY_CONFIG, type EmbroideryPricing } from './embroidery-pricing';
 import type { ModelInfo, SizeRow } from './garment-glb';
 import { GarmentPreview, loadImage, tintGarment, type PreviewHandle, type PreviewMode } from './garment-preview';
 import { OwnDesignForm, type OwnDesignData } from './own-design-form';
@@ -50,6 +51,8 @@ type StudioProps = {
   highlights?: string[];
   /** Diálogo final: en Next envía un brief; en Shopify añade al carrito. */
   renderCheckout?: (props: CheckoutProps) => React.ReactNode;
+  /** «Enviar mi diseño»: manda el resumen, la vista previa y el contacto a la tienda. */
+  renderSend?: (props: CheckoutProps) => React.ReactNode;
   /** Calculadora de bordado (precios y tramos). Sin ella, el estudio funciona como antes. */
   pricing?: EmbroideryPricing;
   /** "libre" (cualquier color, sujeto a confirmación) o "stock" (solo stockColors). */
@@ -57,6 +60,8 @@ type StudioProps = {
   stockColors?: NamedColor[];
   /** URL del JSON con la carta de hilos (assets/br-hilos.json en el tema). */
   threadPaletteUrl?: string;
+  /** URL del worker del hilado del bordado (assets/br-bordado-worker.js); sin ella, se calcula en la página. */
+  workerUrl?: string;
   /**
    * GLB de la prenda, fotos para la vista ligera (render neutro delante/detrás) y medidas por talla
    * (MODELO-3D.md). Sin GLB o si el 3D no es viable, se usa la vista ligera.
@@ -84,10 +89,12 @@ export function DesignStudio({
   ctaLabel = 'Pedir mi boceto gratis',
   highlights = ['Te enviamos el boceto bordable y el precio en 48 h', 'No bordamos nada hasta que lo apruebas'],
   renderCheckout = (p) => <SendDesign {...p} />,
+  renderSend = (p) => <SendDesign {...p} />,
   pricing,
   colorMode = MODO_COLOR_PRENDA,
   stockColors = COLORES_STOCK,
   threadPaletteUrl,
+  workerUrl,
   model
 }: StudioProps = {}) {
   const garmentList = garmentIds ? garments.filter((g) => garmentIds.includes(g.id)) : garments;
@@ -112,10 +119,18 @@ export function DesignStudio({
   const [embroidery, setEmbroidery] = useState(true);
   const [uploads, setUploads] = useState<File[]>([]);
   const [checkout, setCheckout] = useState<CheckoutProps | null>(null);
+  const [sendProps, setSendProps] = useState<CheckoutProps | null>(null);
   const [mobileTab, setMobileTab] = useState<'diseno' | 'prenda'>('diseno');
 
   const canvases = { delante: useSideCanvas(), detras: useSideCanvas() };
+  // Capas del bordado (hilo, relieve, dirección de puntada, sombra): 1K en móvil, 2K en escritorio
+  const layers = useMemo(() => {
+    const size = typeof window !== 'undefined' && window.innerWidth < 768 ? 1024 : 2048;
+    return { delante: createLayers(size), detras: createLayers(size) };
+  }, []);
   const [designVersion, setDesignVersion] = useState(0);
+  const threadizer = useMemo(() => createThreadizer(workerUrl), [workerUrl]);
+  useEffect(() => () => threadizer.dispose(), [threadizer]);
 
   // --- Modelo 3D real (GLB): talla que se ve y siluetas para el lienzo
   const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
@@ -141,7 +156,7 @@ export function DesignStudio({
   const [viewSize, setViewSize] = useState<string | undefined>(undefined);
   const shownSize = viewSize ?? modelInfo?.baseSize;
 
-  // --- Calculadora de bordado: análisis por lado con espera tras cada cambio
+  // --- Hilado del bordado (worker): estimación de puntadas + texturas, por lado, tras cada cambio
   const [analyses, setAnalyses] = useState<Record<Side, DesignAnalysis | null>>({ delante: null, detras: null });
   const [analyzing, setAnalyzing] = useState(false);
   const [calibrate] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('calibrar'));
@@ -149,32 +164,56 @@ export function DesignStudio({
   const pending = useRef(new Set<Side>());
   const pricingRef = useRef(pricing);
   pricingRef.current = pricing;
-  const scheduleAnalysis = useCallback(
+  const threadsRef = useRef(threads);
+  threadsRef.current = threads;
+  const embroideryRef = useRef(embroidery);
+  embroideryRef.current = embroidery;
+  const lowRes = typeof window !== 'undefined' && window.innerWidth < 768;
+
+  const scheduleThreadize = useCallback(
     (s: Side) => {
-      const cfg = pricingRef.current;
-      if (!cfg) return;
       clearTimeout(timers.current[s]);
       pending.current.add(s);
       setAnalyzing(true);
-      timers.current[s] = setTimeout(() => {
-        const r = editors[s].current?.renderForAnalysis(0.05, 900); // ≈ 0,5 mm por píxel
-        const base = r ? analyzeDesign(r.canvas, r.cmPerPx, cfg) : null;
-        const a = base && r ? { ...base, whiteBackgroundRemoved: r.whiteRemoved } : null;
-        setAnalyses((prev) => ({ ...prev, [s]: a }));
-        pending.current.delete(s);
-        setAnalyzing(pending.current.size > 0);
-      }, 450);
+      timers.current[s] = setTimeout(async () => {
+        const done = () => {
+          pending.current.delete(s);
+          setAnalyzing(pending.current.size > 0);
+        };
+        // ≈ 0,4 mm por píxel (0,5 en móvil): suficiente para detectar líneas de 1 mm
+        const r = editors[s].current?.renderForAnalysis(lowRes ? 0.05 : 0.04, lowRes ? 1000 : 1400);
+        if (!r) {
+          if (embroideryRef.current) clearLayers(layers[s]);
+          setAnalyses((prev) => ({ ...prev, [s]: null }));
+          setDesignVersion((v) => v + 1);
+          return done();
+        }
+        const img = r.canvas.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, r.canvas.width, r.canvas.height);
+        const result = await threadizer.run(s, {
+          rgba: img.data,
+          w: img.width,
+          h: img.height,
+          cmPerPx: r.cmPerPx,
+          threads: threadsRef.current,
+          cfg: pricingRef.current ?? DEFAULT_EMBROIDERY_CONFIG,
+          maps: embroideryRef.current
+        });
+        if (!result) return; // llegó un cambio más nuevo
+        if (embroideryRef.current && result.maps) {
+          drawThreadMaps(layers[s], result.maps, r.placement);
+          setDesignVersion((v) => v + 1);
+        }
+        setAnalyses((prev) => ({ ...prev, [s]: result.analysis ? { ...result.analysis, whiteBackgroundRemoved: r.whiteRemoved } : null }));
+        done();
+      }, 220);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [threadizer]
   );
   const estimate = useMemo(
-    () => (pricing && (analyses.delante || analyses.detras) ? buildEstimate(pricing, analyses, threads) : null),
-    [pricing, analyses, threads]
+    () => (pricing && (analyses.delante || analyses.detras) ? buildEstimate(pricing, analyses, color.hex) : null),
+    [pricing, analyses, color.hex]
   );
-
-  const embroideryRef = useRef(embroidery);
-  embroideryRef.current = embroidery;
 
   const refresh = useCallback(
     (s: Side) => {
@@ -182,12 +221,15 @@ export function DesignStudio({
       const canvas = canvases[s];
       if (!ed) return;
       ed.renderTo(canvas);
-      if (embroideryRef.current) applyEmbroidery(canvas);
-      setDesignVersion((v) => v + 1);
-      scheduleAnalysis(s);
+      // Sin efecto bordado: el diseño tal cual al momento. Con él, el hilado llega al dejar de editar.
+      if (!embroideryRef.current) {
+        drawFlat(layers[s], canvas);
+        setDesignVersion((v) => v + 1);
+      }
+      scheduleThreadize(s);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [scheduleThreadize]
   );
   const refreshFront = useCallback(() => refresh('delante'), [refresh]);
   const refreshBack = useCallback(() => refresh('detras'), [refresh]);
@@ -195,12 +237,13 @@ export function DesignStudio({
   useEffect(() => {
     refresh('delante');
     refresh('detras');
-  }, [embroidery, refresh]);
+  }, [embroidery, threads, refresh]);
 
   const onUpload = useCallback((f: File) => setUploads((u) => [...u, f].slice(-2)), []);
 
-  /** Diseño hecho en el estudio → checkout */
-  function openStudioCheckout() {
+  /** Diseño hecho en el estudio → checkout (o «Enviar mi diseño» con el mismo resumen) */
+  function openStudioCheckout(target: 'compra' | 'envio' = 'compra') {
+    const close = () => (target === 'compra' ? setCheckout(null) : setSendProps(null));
     const used = sides.filter((s) => !editors[s.id].current?.isEmpty());
     const sizeOf = (s: Side) => {
       const d = editors[s].current?.getSize();
@@ -213,8 +256,8 @@ export function DesignStudio({
       ['Bordado detrás', used.some((s) => s.id === 'detras') ? `Sí (${sizeOf('detras')})` : 'No']
     ];
     const q = estimate?.quote;
-    setCheckout({
-      onClose: () => setCheckout(null),
+    (target === 'compra' ? setCheckout : setSendProps)({
+      onClose: close,
       size: modelInfo ? shownSize : undefined,
       details,
       prenda: type,
@@ -301,7 +344,7 @@ export function DesignStudio({
       <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl bg-lino-100 px-4 py-3 ring-1 ring-tinta/10">
         <span>
           <span className="block text-sm font-medium">Efecto bordado</span>
-          <span className="block text-xs text-tinta-500">Simula puntadas y relieve del hilo</span>
+          <span className="block text-xs text-tinta-500">Muestra el diseño como hilo: colores de la carta, puntadas y relieve</span>
         </span>
         <input type="checkbox" checked={embroidery} onChange={(e) => setEmbroidery(e.target.checked)} className="h-5 w-5 accent-hilo" />
       </label>
@@ -361,8 +404,7 @@ export function DesignStudio({
                 ref={viewer}
                 color={color.hex}
                 view={side}
-                front={canvases.delante}
-                back={canvases.detras}
+                layers={layers}
                 version={designVersion}
                 modelUrl={model?.url}
                 liteImages={model?.liteImages}
@@ -398,8 +440,10 @@ export function DesignStudio({
               </p>
             </div>
             <div className="hidden space-y-4 rounded-3xl bg-lino-100 p-5 ring-1 ring-tinta/10 lg:block">
-              {pricing && <EmbroideryPanel pricing={pricing} estimate={estimate} busy={analyzing} calibrate={calibrate} />}
-              <CtaBlock onClick={openStudioCheckout} items={[...highlights, priceNote]} label={ctaLabel} />
+              {pricing && (
+                <EmbroideryPanel pricing={pricing} estimate={estimate} busy={analyzing} calibrate={calibrate} onRequestQuote={() => openStudioCheckout('envio')} />
+              )}
+              <CtaBlock onClick={() => openStudioCheckout()} onSend={() => openStudioCheckout('envio')} items={[...highlights, priceNote]} label={ctaLabel} />
             </div>
           </div>
         </div>
@@ -433,8 +477,10 @@ export function DesignStudio({
           <div className={cn('lg:mt-10', mobileTab !== 'prenda' && 'hidden lg:block')}>{garmentOptions}</div>
 
           <div className="mt-8 space-y-4 rounded-3xl bg-lino-100 p-5 ring-1 ring-tinta/10 lg:hidden">
-            {pricing && <EmbroideryPanel pricing={pricing} estimate={estimate} busy={analyzing} calibrate={calibrate} />}
-            <CtaBlock onClick={openStudioCheckout} items={[...highlights, priceNote]} label={ctaLabel} />
+            {pricing && (
+              <EmbroideryPanel pricing={pricing} estimate={estimate} busy={analyzing} calibrate={calibrate} onRequestQuote={() => openStudioCheckout('envio')} />
+            )}
+            <CtaBlock onClick={() => openStudioCheckout()} onSend={() => openStudioCheckout('envio')} items={[...highlights, priceNote]} label={ctaLabel} />
           </div>
         </div>
       </div>
@@ -454,11 +500,12 @@ export function DesignStudio({
       )}
 
       {checkout && renderCheckout(checkout)}
+      {sendProps && renderSend(sendProps)}
     </div>
   );
 }
 
-function CtaBlock({ onClick, items, label }: { onClick: () => void; items: string[]; label: string }) {
+function CtaBlock({ onClick, onSend, items, label }: { onClick: () => void; onSend: () => void; items: string[]; label: string }) {
   return (
     <div>
       <ul className="mb-4 space-y-1.5 text-sm text-tinta-700">
@@ -469,6 +516,10 @@ function CtaBlock({ onClick, items, label }: { onClick: () => void; items: strin
       <button onClick={onClick} className="btn-primary w-full py-4 text-base">
         {label} <ArrowIcon className="h-4 w-4" />
       </button>
+      <button onClick={onSend} className="mt-2 w-full rounded-full border border-tinta/25 py-3.5 text-sm font-semibold hover:border-tinta">
+        Enviar mi diseño
+      </button>
+      <p className="mt-1.5 text-center text-xs text-tinta-500">¿Dudas o encargo grande? Te respondemos con boceto y precio.</p>
     </div>
   );
 }

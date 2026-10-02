@@ -1,0 +1,43 @@
+{%- comment -%}
+  BR · Suscripción a la newsletter (formulario de clientes de Shopify: crea el cliente con
+  consentimiento de marketing y la etiqueta «newsletter»).
+{%- endcomment -%}
+{{ 'br-landing.css' | asset_url | stylesheet_tag }}
+{%- assign s = section.settings -%}
+<section class="br br-section br-news" id="newsletter">
+  <div class="br-wrap br-news__grid">
+    <div>
+      {%- if s.eyebrow != blank -%}<p class="br-eyebrow">{{ s.eyebrow }}</p>{%- endif -%}
+      <h2 class="br-h2">{{ s.heading }}</h2>
+      {%- if s.text != blank -%}<p class="br-lead">{{ s.text }}</p>{%- endif -%}
+    </div>
+    {%- form 'customer', id: 'br-newsletter-form', class: 'br-news__form' -%}
+      <input type="hidden" name="contact[tags]" value="newsletter">
+      {%- if form.posted_successfully? -%}
+        <p class="br-msg br-msg--ok" role="status">¡Listo! Te avisaremos de novedades y lanzamientos.</p>
+      {%- else -%}
+        <label class="br-vh" for="br-news-email">Tu email</label>
+        <div class="br-field-row">
+          <input id="br-news-email" type="email" name="contact[email]" required autocomplete="email" placeholder="Tu email" value="{{ form.email }}">
+          <button type="submit" class="br-btn">{{ s.button_label }}</button>
+        </div>
+        {%- if form.errors -%}<p class="br-msg br-msg--err" role="alert">{{ form.errors | default_errors }}</p>{%- endif -%}
+        <p class="br-small">Al suscribirte aceptas recibir emails de {{ shop.name }}. Puedes darte de baja cuando quieras. <a href="{{ shop.privacy_policy.url | default: '/policies/privacy-policy' }}">Privacidad</a>.</p>
+      {%- endif -%}
+    {%- endform -%}
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "BR · Newsletter",
+  "tag": "div",
+  "settings": [
+    { "type": "text", "id": "eyebrow", "label": "Antetítulo", "default": "Newsletter" },
+    { "type": "text", "id": "heading", "label": "Título", "default": "Las nuevas piezas, primero para ti" },
+    { "type": "text", "id": "text", "label": "Texto", "default": "Lanzamientos, ediciones limitadas y novedades del taller. Sin spam." },
+    { "type": "text", "id": "button_label", "label": "Botón", "default": "Suscribirme" }
+  ],
+  "presets": [{ "name": "BR · Newsletter" }]
+}
+{% endschema %}

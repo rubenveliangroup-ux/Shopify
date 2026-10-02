@@ -1,0 +1,34 @@
+{
+  "type": "footer",
+  "name": "t:names.footer",
+  "sections": {
+    "br_footer": {
+      "type": "br-footer",
+      "settings": {
+        "tagline": "Bordado gallego hecho en Pontevedra.",
+        "email": "",
+        "phone": "",
+        "whatsapp": "",
+        "address": "Pontevedra, Galicia",
+        "hours": "",
+        "instagram": "",
+        "tiktok": "",
+        "facebook": "",
+        "pinterest": "",
+        "youtube": "",
+        "title_tienda": "Tienda",
+        "menu_tienda": "pie-tienda",
+        "title_ayuda": "Ayuda",
+        "menu_ayuda": "pie-ayuda",
+        "title_legal": "Legal",
+        "menu_legal": "pie-legal",
+        "show_newsletter": true,
+        "news_title": "Newsletter",
+        "news_text": "Novedades y lanzamientos. Puedes darte de baja cuando quieras.",
+        "legal_name": "",
+        "made_in": "Hecho en Pontevedra"
+      }
+    }
+  },
+  "order": ["br_footer"]
+}

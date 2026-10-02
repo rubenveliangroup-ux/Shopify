@@ -1,0 +1,79 @@
+{%- comment -%}
+  BR · Preguntas frecuentes en acordeón.
+  FUENTE ÚNICA: la página «Preguntas frecuentes» (Tienda online > Páginas). Cada pregunta es un
+  Encabezado 3 y su respuesta, los párrafos de debajo. Esta sección la muestra en la portada
+  (las primeras N) y en la propia página (todas). Sin página elegida, usa los bloques.
+{%- endcomment -%}
+{{ 'br-landing.css' | asset_url | stylesheet_tag }}
+{%- liquid
+  assign s = section.settings
+  assign src = s.page
+  if src == blank and page.handle == 'preguntas-frecuentes'
+    assign src = page
+  endif
+  assign limit = s.limit
+  if s.show_all
+    assign limit = 100
+  endif
+-%}
+<section class="br br-section" id="faq">
+  <div class="br-wrap br-faq">
+    <div>
+      {%- if s.eyebrow != blank -%}<p class="br-eyebrow">{{ s.eyebrow }}</p>{%- endif -%}
+      <h2 class="br-h2">{{ s.heading }}</h2>
+      {%- if s.text != blank -%}<p class="br-lead">{{ s.text }}</p>{%- endif -%}
+      {%- if src != blank and s.show_all == false -%}<div class="br-btns"><a class="br-btn br-btn--ghost" href="{{ src.url }}">Ver todas las preguntas</a></div>{%- endif -%}
+    </div>
+    <div class="br-acc">
+      {%- capture ld -%}{%- endcapture -%}
+      {%- if src != blank -%}
+        {%- assign parts = src.content | split: '<h3' -%}
+        {%- for part in parts offset: 1 limit: limit -%}
+          {%- assign q = part | split: '</h3>' | first | split: '>' | last | strip -%}
+          {%- assign a = part | split: '</h3>' | last -%}
+          <details{% if forloop.first and s.open_first %} open{% endif %}>
+            <summary>{{ q }}</summary>
+            <div class="br-acc__body">{{ a }}</div>
+          </details>
+          {%- capture item -%}{"@type":"Question","name":{{ q | strip_html | json }},"acceptedAnswer":{"@type":"Answer","text":{{ a | strip_html | strip | json }}}}{%- endcapture -%}
+          {%- capture ld -%}{{ ld }}{% unless forloop.first %},{% endunless %}{{ item }}{%- endcapture -%}
+        {%- endfor -%}
+      {%- else -%}
+        {%- for block in section.blocks limit: limit -%}
+          <details{% if forloop.first and s.open_first %} open{% endif %} {{ block.shopify_attributes }}>
+            <summary>{{ block.settings.question }}</summary>
+            <div class="br-acc__body">{{ block.settings.answer }}</div>
+          </details>
+          {%- capture item -%}{"@type":"Question","name":{{ block.settings.question | json }},"acceptedAnswer":{"@type":"Answer","text":{{ block.settings.answer | strip_html | strip | json }}}}{%- endcapture -%}
+          {%- capture ld -%}{{ ld }}{% unless forloop.first %},{% endunless %}{{ item }}{%- endcapture -%}
+        {%- endfor -%}
+      {%- endif -%}
+    </div>
+  </div>
+  {%- if ld != blank -%}
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{{ ld }}]}</script>
+  {%- endif -%}
+</section>
+
+{% schema %}
+{
+  "name": "BR · Preguntas frecuentes",
+  "tag": "div",
+  "settings": [
+    { "type": "page", "id": "page", "label": "Página con las preguntas", "info": "Recomendado: «Preguntas frecuentes». Cada pregunta en Encabezado 3." },
+    { "type": "text", "id": "eyebrow", "label": "Antetítulo", "default": "Ayuda" },
+    { "type": "text", "id": "heading", "label": "Título", "default": "Preguntas frecuentes" },
+    { "type": "text", "id": "text", "label": "Texto", "default": "¿No encuentras lo que buscas? Escríbenos y te respondemos." },
+    { "type": "range", "id": "limit", "label": "Preguntas visibles", "min": 3, "max": 12, "step": 1, "default": 5 },
+    { "type": "checkbox", "id": "show_all", "label": "Mostrar todas (para la página de preguntas)", "default": false },
+    { "type": "checkbox", "id": "open_first", "label": "Primera abierta", "default": false }
+  ],
+  "blocks": [
+    { "type": "question", "name": "Pregunta", "settings": [
+      { "type": "text", "id": "question", "label": "Pregunta", "default": "Pregunta" },
+      { "type": "richtext", "id": "answer", "label": "Respuesta", "default": "<p>Respuesta.</p>" }
+    ] }
+  ],
+  "presets": [{ "name": "BR · Preguntas frecuentes" }]
+}
+{% endschema %}

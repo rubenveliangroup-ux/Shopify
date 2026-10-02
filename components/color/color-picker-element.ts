@@ -9,11 +9,13 @@
  *   swatches='[{"name":"Negro","hex":"#111111"}]'   cuadrícula (kind=color; por defecto, COLORES_HABITUALES)
  *   thread-palette-url="…/br-hilos.json"             paleta de hilos (kind=thread)
  *   name="contact[Color]"     crea campos ocultos para formularios (valor hex y, si es hilo, el hilo)
- * Propiedades: .value, .swatches, .threadPalette
- * Evento: "color-change" → detail { hex, name, thread? }
+ *   multiple max="8"          permite añadir varios colores (lista con nombre aproximado y hex);
+ *                             el campo oculto `name` lleva «Nombre #HEX; Nombre #HEX…»
+ * Propiedades: .value, .swatches, .threadPalette, .selected (modo multiple)
+ * Eventos: "color-change" → detail { hex, name, thread? } · "colors-change" → detail { colors }
  */
 import { contrastText, hexToRgb, hsvToRgb, normalizeHex, rgbToHex, rgbToHsv } from './color-math';
-import { COLORES_HABITUALES } from './color-config';
+import { approxColorName, COLORES_HABITUALES } from './color-config';
 import { DEFAULT_THREADS, loadThreadPalette, nearestThread, threadLabel, type Thread } from './threads';
 
 export type ColorChangeDetail = { hex: string; name: string; thread?: Thread };
@@ -52,6 +54,15 @@ details[open] summary::after { content:"−"; }
 .hexrow input { flex:1; min-width:0; height:44px; border:1px solid var(--line); border-radius:12px; padding:0 12px; font: 15px ui-monospace, Menlo, monospace; background:#fff; color:var(--ink); }
 .hexrow input[aria-invalid="true"] { border-color: var(--accent); }
 .note { font-size:12px; color:var(--muted); margin:0; }
+.multi { margin-top:10px; display:grid; gap:8px; }
+.add { min-height:44px; border:1px dashed var(--ink); border-radius:999px; background:transparent; font: 600 14px/1 inherit; color:var(--ink); cursor:pointer; padding:0 16px; }
+.add:disabled { opacity:.4; cursor:default; }
+.chips { list-style:none; margin:0; padding:0; display:grid; gap:6px; }
+.chips li { display:flex; align-items:center; gap:10px; padding:6px 6px 6px 8px; border:1px solid var(--line); border-radius:14px; background:#fff; font-size:14px; }
+.chips i { width:28px; height:28px; border-radius:8px; flex:none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.18); }
+.chips span { flex:1; min-width:0; }
+.chips code { font-family: ui-monospace, Menlo, monospace; color:var(--muted); font-size:12px; }
+.chips button { width:44px; height:44px; border:0; background:transparent; font-size:18px; cursor:pointer; color:var(--muted); border-radius:10px; }
 `;
 
 // En servidor (SSR) no existe HTMLElement: la clase solo se usa en el navegador.
@@ -66,6 +77,7 @@ export class BrColorPicker extends Base {
   private _threads: Thread[] = DEFAULT_THREADS;
   private hsv: [number, number, number] = [0, 0, 0.1];
   private hiddenInputs: HTMLInputElement[] = [];
+  private _selected: ColorChangeDetail[] = [];
 
   constructor() {
     super();
@@ -101,6 +113,12 @@ export class BrColorPicker extends Base {
   set threadPalette(t: Thread[]) {
     this._threads = t?.length ? t : DEFAULT_THREADS;
     this.render();
+  }
+  get multiple() {
+    return this.hasAttribute('multiple');
+  }
+  get selected() {
+    return this._selected;
   }
   get thread(): Thread | undefined {
     return this.kind === 'thread' ? nearestThread(this._value, this._threads) : undefined;
@@ -146,7 +164,7 @@ export class BrColorPicker extends Base {
       return i;
     };
     this.hiddenInputs = [mk(name)];
-    if (this.kind === 'thread') this.hiddenInputs.push(mk(name.replace(/\]$/, ' (hilo)]')));
+    if (this.kind === 'thread' && !this.multiple) this.hiddenInputs.push(mk(name.replace(/\]$/, ' (hilo)]')));
   }
 
   private gridColors(): Swatch[] {
@@ -162,7 +180,7 @@ export class BrColorPicker extends Base {
 
   private nameOf(hex: string) {
     if (this.kind === 'thread') return this.thread ? threadLabel(this.thread) : hex;
-    return this.gridColors().find((s) => s.hex.toLowerCase() === hex)?.name ?? 'Personalizado';
+    return this.gridColors().find((s) => s.hex.toLowerCase() === hex)?.name ?? approxColorName(hex);
   }
 
   private render() {
@@ -193,7 +211,13 @@ export class BrColorPicker extends Base {
             ${this.kind === 'thread' ? '<p class="note">El color elegido se ajusta al hilo real más cercano de nuestra carta.</p>' : ''}
           </div></details>`
           : ''
+      }
+      ${
+        this.multiple
+          ? `<div class="multi"><button type="button" class="add">+ Añadir este color</button><ul class="chips" aria-label="Colores elegidos"></ul></div>`
+          : ''
       }`;
+    this.root.querySelector<HTMLButtonElement>('.add')?.addEventListener('click', () => this.addCurrent());
     this.root.querySelectorAll<HTMLButtonElement>('.sw').forEach((b) =>
       b.addEventListener('click', () => this.pick(b.dataset.hex!))
     );
@@ -299,8 +323,46 @@ export class BrColorPicker extends Base {
       const hx = r.querySelector<HTMLInputElement>('#hx')!;
       if (syncHexField && this.root.activeElement !== hx) hx.value = v.toUpperCase();
     }
-    if (this.hiddenInputs[0]) this.hiddenInputs[0].value = v;
-    if (this.hiddenInputs[1]) this.hiddenInputs[1].value = t ? `${threadLabel(t)} (${t.hex})` : '';
+    if (this.multiple) this.renderChips();
+    else {
+      if (this.hiddenInputs[0]) this.hiddenInputs[0].value = v;
+      if (this.hiddenInputs[1]) this.hiddenInputs[1].value = t ? `${threadLabel(t)} (${t.hex})` : '';
+    }
+  }
+
+  /** Modo multiple: añade el color actual a la lista (sin repetir). */
+  private addCurrent() {
+    const max = Number(this.getAttribute('max') || 8);
+    const t = this.thread;
+    const hex = (t?.hex ?? this._value).toLowerCase();
+    if (this._selected.some((c) => c.hex === hex) || this._selected.length >= max) return;
+    this._selected = [...this._selected, { hex, name: this.nameOf(this._value), thread: t }];
+    this.renderChips();
+    this.dispatchEvent(new CustomEvent('colors-change', { detail: { colors: this._selected }, bubbles: true, composed: true }));
+  }
+
+  private renderChips() {
+    const ul = this.root.querySelector<HTMLUListElement>('.chips');
+    const add = this.root.querySelector<HTMLButtonElement>('.add');
+    if (!ul || !add) return;
+    const max = Number(this.getAttribute('max') || 8);
+    const hex = (this.thread?.hex ?? this._value).toLowerCase();
+    add.disabled = this._selected.length >= max || this._selected.some((c) => c.hex === hex);
+    add.textContent = this._selected.some((c) => c.hex === hex) ? '✓ Color añadido' : '+ Añadir este color';
+    ul.innerHTML = this._selected
+      .map(
+        (c, i) =>
+          `<li><i style="background:${c.hex}"></i><span>${escapeHtml(c.name)} <code>${c.hex.toUpperCase()}</code></span><button type="button" data-i="${i}" aria-label="Quitar ${escapeHtml(c.name)}">✕</button></li>`
+      )
+      .join('');
+    ul.querySelectorAll<HTMLButtonElement>('button').forEach((b) =>
+      b.addEventListener('click', () => {
+        this._selected = this._selected.filter((_, j) => j !== Number(b.dataset.i));
+        this.renderChips();
+        this.dispatchEvent(new CustomEvent('colors-change', { detail: { colors: this._selected }, bubbles: true, composed: true }));
+      })
+    );
+    if (this.hiddenInputs[0]) this.hiddenInputs[0].value = this._selected.map((c) => `${c.name} ${c.hex.toUpperCase()}`).join('; ');
   }
 
   private emit(live = false) {

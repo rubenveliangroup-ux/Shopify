@@ -8,12 +8,25 @@
  * coinciden con esta fórmula.
  */
 export type EmbroideryConfig = {
-  /** Puntadas por cm² de superficie bordada (relleno). Calibrar con diseños reales. */
+  /** PUNTADAS_POR_CM2: puntadas por cm² de RELLENO (zonas anchas, tatami). Calibrar con diseños reales. */
   puntadasPorCm2: number;
-  /** Puntadas extra por cm de contorno (detalle, bordes, líneas). */
+  /** PUNTADAS_POR_CM_LINEA: puntadas por cm de LÍNEA (trazos finos en satén o pespunte). */
+  puntadasPorCmLinea: number;
+  /** Puntadas extra por cm de contorno de los rellenos (remate en satén del borde). */
   puntadasPorCmBorde: number;
-  /** Margen de seguridad sobre las puntadas estimadas (0.10 = +10 %). */
+  /** Una zona más estrecha que esto (mm) se borda como línea; más ancha, como relleno. */
+  anchoMaxLineaMm: number;
+  /** Margen de seguridad sobre las puntadas estimadas (0.10 = +10 %), antes de asignar tramo. */
   margenSeguridad: number;
+  /** MARGEN_ERROR: amplitud del rango que se muestra (0.2 = «entre −20 % y +20 %»). */
+  margenError: number;
+  /** Por encima de estas puntadas no hay precio automático: presupuesto personalizado. */
+  umbralPresupuesto: number;
+  /** Área máxima del bastidor de la máquina (cm). */
+  bastidorAnchoCm: number;
+  bastidorAltoCm: number;
+  /** ΔE (CIEDE2000) mínimo entre hilo y tela para que el hilo se distinga. */
+  contrasteMinimo: number;
   /** € por cada 1.000 puntadas. */
   costePorMil: number;
   /** Multiplicador de margen comercial sobre el coste de puntadas. */
@@ -35,14 +48,21 @@ export type EmbroideryConfig = {
 
 export const DEFAULT_EMBROIDERY_CONFIG: EmbroideryConfig = {
   puntadasPorCm2: 150, // PROVISIONAL: calibrar con diseños reales (ver shopify-theme/CALCULADORA.md)
+  puntadasPorCmLinea: 25, // PROVISIONAL: satén ≈ 0,4 mm entre puntadas → 25 por cm de trazo
   puntadasPorCmBorde: 5, // PROVISIONAL
+  anchoMaxLineaMm: 4,
   margenSeguridad: 0.1,
+  margenError: 0.2,
+  umbralPresupuesto: 50000,
+  bastidorAnchoCm: 30, // PROVISIONAL: poner el bastidor real de la máquina
+  bastidorAltoCm: 30,
+  contrasteMinimo: 12,
   costePorMil: 0.75,
   multiplicadorMargen: 1.0,
   cuotaFija: 5, // PROVISIONAL
   precioColorAdicional: 1, // PROVISIONAL
   maxColores: 12,
-  tramos: [5000, 10000, 15000, 20000],
+  tramos: [5000, 10000, 15000, 20000, 30000, 40000, 50000],
   umbralColor: 0.01,
   grosorMinimoMm: 1,
   tamanoMinimoCm: 1.5
@@ -87,6 +107,8 @@ export type Quote =
 export function quote(p: EmbroideryPricing, stitches: number, colors: number): Quote {
   if (stitches <= 0 || colors <= 0) return { kind: 'empty' };
   if (colors > p.maxColores) return { kind: 'too-many-colors', colors, max: p.maxColores };
+  // Por encima del umbral (o del último tramo): presupuesto personalizado
+  if (stitches > p.umbralPresupuesto) return { kind: 'quote-required', stitches, colors };
   const tierIndex = p.tramos.findIndex((tope) => stitches <= tope);
   if (tierIndex === -1) return { kind: 'quote-required', stitches, colors };
 

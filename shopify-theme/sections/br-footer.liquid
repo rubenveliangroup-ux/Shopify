@@ -1,0 +1,183 @@
+{%- comment -%}
+  BR · Pie de página: marca y contacto, menús (Tienda, Ayuda, Legal), newsletter, redes,
+  métodos de pago (los que tenga activos la tienda, en dinámico) y copyright.
+  Móvil: menús plegables. Escritorio: columnas.
+  Los menús se editan en Contenido > Menús («Pie: Ayuda», «Pie: Legal»). Si un menú no existe o
+  está vacío, se muestran los enlaces por defecto de abajo (respaldo).
+{%- endcomment -%}
+{{ 'br-landing.css' | asset_url | stylesheet_tag }}
+{%- liquid
+  assign s = section.settings
+  assign m_tienda = linklists[s.menu_tienda]
+  assign m_ayuda = linklists[s.menu_ayuda]
+  assign m_legal = linklists[s.menu_legal]
+-%}
+<footer class="br br-foot">
+  <div class="br-wrap">
+    <div class="br-foot__top">
+      <div class="br-foot__brand">
+        {%- if settings.logo_inverse != blank -%}
+          {{ settings.logo_inverse | image_url: width: 240 | image_tag: class: 'br-foot__logo', loading: 'lazy', alt: shop.name }}
+        {%- else -%}
+          <p class="br-h2">{{ shop.name }}</p>
+        {%- endif -%}
+        {%- if s.tagline != blank -%}<p class="br-foot__tag">{{ s.tagline }}</p>{%- endif -%}
+        <ul class="br-foot__contact">
+          {%- if s.email != blank -%}<li><a href="mailto:{{ s.email }}">{{ s.email }}</a></li>{%- endif -%}
+          {%- if s.phone != blank -%}<li><a href="tel:{{ s.phone | remove: ' ' }}">{{ s.phone }}</a></li>{%- endif -%}
+          {%- if s.whatsapp != blank -%}<li><a href="https://wa.me/{{ s.whatsapp | remove: ' ' | remove: '+' }}" target="_blank" rel="noopener">WhatsApp</a></li>{%- endif -%}
+          {%- if s.address != blank -%}<li>{{ s.address }}</li>{%- endif -%}
+          {%- if s.hours != blank -%}<li>{{ s.hours }}</li>{%- endif -%}
+        </ul>
+        {%- capture redes -%}
+          {%- if s.instagram != blank -%}<li><a href="{{ s.instagram }}" target="_blank" rel="noopener">Instagram</a></li>{%- endif -%}
+          {%- if s.tiktok != blank -%}<li><a href="{{ s.tiktok }}" target="_blank" rel="noopener">TikTok</a></li>{%- endif -%}
+          {%- if s.facebook != blank -%}<li><a href="{{ s.facebook }}" target="_blank" rel="noopener">Facebook</a></li>{%- endif -%}
+          {%- if s.pinterest != blank -%}<li><a href="{{ s.pinterest }}" target="_blank" rel="noopener">Pinterest</a></li>{%- endif -%}
+          {%- if s.youtube != blank -%}<li><a href="{{ s.youtube }}" target="_blank" rel="noopener">YouTube</a></li>{%- endif -%}
+        {%- endcapture -%}
+        {%- if redes != blank -%}<ul class="br-foot__social" aria-label="Redes sociales">{{ redes }}</ul>{%- endif -%}
+      </div>
+
+      <nav class="br-foot__menus" aria-label="Pie de página">
+        {%- capture def_tienda -%}<li><a href="{{ routes.all_products_collection_url }}">Catálogo</a></li><li><a href="/pages/disena-tu-prenda">Diseña tu prenda</a></li><li><a href="/pages/impulsa-tu-marca">Impulsa tu marca</a></li>{%- endcapture -%}
+        {%- capture def_ayuda -%}<li><a href="/pages/preguntas-frecuentes">Preguntas frecuentes</a></li><li><a href="/pages/envios-y-plazos">Envíos y plazos</a></li><li><a href="/pages/cambios-y-devoluciones">Cambios y devoluciones</a></li><li><a href="/pages/contact">Contacto</a></li>{%- endcapture -%}
+        {%- capture def_legal -%}<li><a href="/pages/aviso-legal">Aviso legal</a></li><li><a href="/policies/privacy-policy">Política de privacidad</a></li><li><a href="/pages/politica-de-cookies">Política de cookies</a></li><li><a href="/pages/condiciones-de-venta">Condiciones de venta</a></li>{%- endcapture -%}
+        {%- for col in (1..3) -%}
+          {%- case col -%}
+            {%- when 1 -%}{%- assign titulo = s.title_tienda -%}{%- assign menu = m_tienda -%}{%- assign def = def_tienda -%}
+            {%- when 2 -%}{%- assign titulo = s.title_ayuda -%}{%- assign menu = m_ayuda -%}{%- assign def = def_ayuda -%}
+            {%- when 3 -%}{%- assign titulo = s.title_legal -%}{%- assign menu = m_legal -%}{%- assign def = def_legal -%}
+          {%- endcase -%}
+          <details class="br-foot__col" data-br-fold>
+            <summary>{{ titulo }}</summary>
+            <ul>
+              {%- if menu.links.size > 0 -%}
+                {%- for link in menu.links -%}<li><a href="{{ link.url }}">{{ link.title }}</a></li>{%- endfor -%}
+              {%- else -%}
+                {{ def }}
+              {%- endif -%}
+            </ul>
+          </details>
+        {%- endfor -%}
+      </nav>
+
+      {%- if s.show_newsletter -%}
+        <div class="br-foot__news">
+          <p class="br-foot__h">{{ s.news_title }}</p>
+          {%- form 'customer', id: 'br-foot-news', class: 'br-foot__form' -%}
+            <input type="hidden" name="contact[tags]" value="newsletter">
+            {%- if form.posted_successfully? -%}
+              <p class="br-msg br-msg--ok" role="status">¡Listo! Ya estás en la lista.</p>
+            {%- else -%}
+              <label class="br-vh" for="br-foot-email">Tu email</label>
+              <div class="br-field-row">
+                <input id="br-foot-email" type="email" name="contact[email]" required autocomplete="email" placeholder="Tu email">
+                <button type="submit" class="br-foot__send" aria-label="Suscribirme">→</button>
+              </div>
+              {%- if form.errors -%}<p class="br-msg br-msg--err" role="alert">{{ form.errors | default_errors }}</p>{%- endif -%}
+              <p class="br-small">{{ s.news_text }}</p>
+            {%- endif -%}
+          {%- endform -%}
+        </div>
+      {%- endif -%}
+    </div>
+
+    <div class="br-foot__bottom">
+      {%- if shop.enabled_payment_types.size > 0 -%}
+        <ul class="br-foot__pay" aria-label="Métodos de pago">
+          {%- for type in shop.enabled_payment_types -%}<li>{{ type | payment_type_svg_tag: class: 'br-foot__payicon' }}</li>{%- endfor -%}
+        </ul>
+      {%- endif -%}
+      <p class="br-foot__copy">© {{ 'now' | date: '%Y' }} {{ s.legal_name | default: shop.name }}{% if s.made_in != blank %} · {{ s.made_in }}{% endif %}</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .br-foot { background: var(--br-ink); color: #f7f5f0; padding: 56px 0 28px; }
+  .br-foot a { color: inherit; text-decoration: none; }
+  .br-foot a:hover { text-decoration: underline; text-underline-offset: 4px; }
+  .br-foot__top { display: grid; gap: 32px; }
+  .br-foot__logo { width: 120px; height: auto; }
+  .br-foot .br-h2 { color: #f7f5f0; font-size: 40px; }
+  .br-foot__tag { margin: 14px 0 0; color: rgba(247, 245, 240, .7); max-width: 26em; line-height: 1.55; }
+  .br-foot__contact, .br-foot__social { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 8px; color: rgba(247, 245, 240, .85); }
+  .br-foot__social { display: flex; flex-wrap: wrap; gap: 8px; }
+  .br-foot__social a { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: 1px solid rgba(247, 245, 240, .3); border-radius: 999px; font-size: 13px; }
+  .br-foot__col { border-top: 1px solid rgba(247, 245, 240, .18); }
+  .br-foot__col:last-child { border-bottom: 1px solid rgba(247, 245, 240, .18); }
+  .br-foot__col summary, .br-foot__h { list-style: none; display: flex; justify-content: space-between; align-items: center; min-height: 56px; margin: 0; font: 600 11px/1.2 var(--br-body); letter-spacing: .18em; text-transform: uppercase; color: var(--br-sand); cursor: pointer; }
+  .br-foot__col summary::-webkit-details-marker { display: none; }
+  .br-foot__col summary::after { content: '+'; font-size: 22px; font-weight: 300; letter-spacing: 0; color: #f7f5f0; }
+  .br-foot__col[open] summary::after { content: '−'; }
+  .br-foot__col ul { list-style: none; margin: 0; padding: 0 0 16px; display: grid; gap: 4px; }
+  .br-foot__col li a { display: inline-flex; min-height: 40px; align-items: center; color: rgba(247, 245, 240, .88); }
+  .br-foot__h { cursor: default; min-height: 0; margin-bottom: 14px; }
+  .br-foot .br-field-row { border-color: rgba(247, 245, 240, .5); }
+  .br-foot .br-field-row input { color: #f7f5f0; }
+  .br-foot .br-field-row input::placeholder { color: rgba(247, 245, 240, .55); }
+  .br-foot__send { width: 52px; border: 0; background: transparent; color: #f7f5f0; font-size: 22px; cursor: pointer; }
+  .br-foot .br-small { color: rgba(247, 245, 240, .6); }
+  .br-foot .br-msg--ok { background: rgba(247, 245, 240, .12); color: #f7f5f0; }
+  .br-foot__bottom { display: grid; gap: 16px; margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(247, 245, 240, .18); }
+  .br-foot__pay { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+  .br-foot__payicon { width: 38px; height: 24px; display: block; }
+  .br-foot__copy { margin: 0; font-size: 12.5px; color: rgba(247, 245, 240, .6); }
+  @media (min-width: 990px) {
+    .br-foot { padding: 88px 0 32px; }
+    .br-foot__top { grid-template-columns: 1.3fr 2fr 1.2fr; gap: 56px; }
+    .br-foot__menus { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+    .br-foot__col, .br-foot__col:last-child { border: 0; }
+    .br-foot__col summary { pointer-events: none; min-height: 0; margin-bottom: 14px; }
+    .br-foot__col summary::after { display: none; }
+    .br-foot__bottom { grid-template-columns: 1fr auto; align-items: center; }
+  }
+</style>
+<script>
+  (() => {
+    // Escritorio: menús siempre abiertos (columnas). Móvil: plegables.
+    const mq = matchMedia('(min-width: 990px)');
+    const sync = () => document.querySelectorAll('.br-foot [data-br-fold]').forEach((d) => { if (mq.matches) d.open = true; else d.open = false; });
+    sync();
+    mq.addEventListener('change', sync);
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "BR · Pie de página",
+  "tag": "div",
+  "class": "section-br-footer",
+  "settings": [
+    { "type": "header", "content": "Marca y contacto" },
+    { "type": "text", "id": "tagline", "label": "Frase", "default": "Bordado gallego hecho en Pontevedra." },
+    { "type": "text", "id": "email", "label": "Email", "info": "Vacío = no se muestra." },
+    { "type": "text", "id": "phone", "label": "Teléfono" },
+    { "type": "text", "id": "whatsapp", "label": "WhatsApp (formato 34600000000)" },
+    { "type": "text", "id": "address", "label": "Dirección o localidad", "default": "Pontevedra, Galicia" },
+    { "type": "text", "id": "hours", "label": "Horario de atención" },
+    { "type": "header", "content": "Redes sociales (vacío = no se muestra)" },
+    { "type": "url", "id": "instagram", "label": "Instagram" },
+    { "type": "url", "id": "tiktok", "label": "TikTok" },
+    { "type": "url", "id": "facebook", "label": "Facebook" },
+    { "type": "url", "id": "pinterest", "label": "Pinterest" },
+    { "type": "url", "id": "youtube", "label": "YouTube" },
+    { "type": "header", "content": "Menús" },
+    { "type": "text", "id": "title_tienda", "label": "Título columna 1", "default": "Tienda" },
+    { "type": "link_list", "id": "menu_tienda", "label": "Menú columna 1" },
+    { "type": "text", "id": "title_ayuda", "label": "Título columna 2", "default": "Ayuda" },
+    { "type": "link_list", "id": "menu_ayuda", "label": "Menú columna 2" },
+    { "type": "text", "id": "title_legal", "label": "Título columna 3", "default": "Legal" },
+    { "type": "link_list", "id": "menu_legal", "label": "Menú columna 3" },
+    { "type": "header", "content": "Newsletter" },
+    { "type": "checkbox", "id": "show_newsletter", "label": "Mostrar suscripción", "default": true },
+    { "type": "text", "id": "news_title", "label": "Título", "default": "Newsletter" },
+    { "type": "text", "id": "news_text", "label": "Texto", "default": "Novedades y lanzamientos. Puedes darte de baja cuando quieras." },
+    { "type": "header", "content": "Barra inferior" },
+    { "type": "text", "id": "legal_name", "label": "Nombre en el copyright", "info": "Vacío = nombre de la tienda." },
+    { "type": "text", "id": "made_in", "label": "Texto final", "default": "Hecho en Pontevedra" }
+  ],
+  "presets": [{ "name": "BR · Pie de página" }]
+}
+{% endschema %}
