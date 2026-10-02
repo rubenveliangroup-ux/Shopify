@@ -7,11 +7,11 @@ export type SizeChartData = {
   filas: { talla: string; largo: number; pecho: number; bajo: number; manga: number }[];
 };
 
-/** Tabla de medidas desplegable junto al selector de talla. */
-export function SizeChart({ data, highlight }: { data: SizeChartData; highlight?: string }) {
+/** Tabla de medidas desplegable junto al selector de talla (`open`: abierta de entrada). */
+export function SizeChart({ data, highlight, open }: { data: SizeChartData; highlight?: string; open?: boolean }) {
   if (!data?.filas?.length) return null;
   return (
-    <details className="group mt-3 rounded-2xl border border-tinta/15 bg-lino">
+    <details className="group mt-3 rounded-2xl border border-tinta/15 bg-lino" open={open}>
       <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 text-sm font-semibold [&::-webkit-details-marker]:hidden">
         Ver medidas (cm)
         <span className="text-lg transition group-open:rotate-45" aria-hidden>+</span>

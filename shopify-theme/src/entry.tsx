@@ -4,6 +4,7 @@ import { DesignStudio } from '@/components/studio/design-studio';
 import type { SizeChartData } from '@/components/studio/size-chart';
 import { DEFAULT_EMBROIDERY_CONFIG, type EmbroideryConfig, type EmbroideryPricing, type PricedVariant } from '@/components/studio/embroidery-pricing';
 import { ShopifyAddToCart, type ShopifyVariant } from './add-to-cart';
+import { ShopifyDesignRequest } from './design-request';
 import { ShopifySendDesign, type SendConfig } from './send-design';
 
 type Config = {
@@ -98,9 +99,10 @@ function mount() {
     <DesignStudio
       garmentIds={['sudadera']}
       altHref={config.altHref}
-      priceNote={`Sudadera personalizada: ${config.price} + bordado`}
-      ctaLabel="Elegir talla y añadir al carrito"
-      highlights={['Te enviamos el boceto para aprobar antes de bordar', `Producción en 7–10 días laborables`]}
+      priceNote={`Sudadera personalizada: ${config.price} + bordado · te enviamos el boceto para aprobar antes de bordar`}
+      ctaLabel="Añadir al carrito"
+      sizeOptions={config.variants.map((v) => ({ title: v.title, available: v.available }))}
+      sizeChart={config.sizeChart}
       pricing={pricingFrom(config.embroidery)}
       colorMode={(config.colorMode === 'stock' ? 'stock' : 'libre') as GarmentColorMode}
       stockColors={parseColorList(config.stockColors)}
@@ -108,6 +110,9 @@ function mount() {
       workerUrl={config.workerUrl}
       model={{ url: config.modelUrl || undefined, liteImages: config.liteImages, sizes: config.sizeChart?.filas }}
       renderSend={(p) => <ShopifySendDesign {...p} variants={config.variants} send={config.send ?? { formId: 'br-send-form' }} />}
+      renderRequest={(prefill) => (
+        <ShopifyDesignRequest prefill={prefill} sizes={config.variants.map((v) => v.title)} send={config.send ?? { formId: 'br-send-form' }} />
+      )}
       renderCheckout={(p) => (
         <ShopifyAddToCart
           {...p}

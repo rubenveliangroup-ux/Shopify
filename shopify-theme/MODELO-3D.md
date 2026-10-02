@@ -49,25 +49,15 @@ Después se optimiza con `npm run glb:optimizar` y se generan las fotos ligeras 
 - **Efecto lavado:** la textura no lo trae. Lo añade el material: variación suave de tono de unos ±6 %, en manchas de unos 10 cm y vetas finas. Se calcula en el espacio de la prenda, así que no se ven las costuras de las UV.
 - **Felpa mate:** brillo aterciopelado (*sheen*) en lugar de reflejos. Es algo más visible en colores oscuros, para que el negro no pierda los pliegues.
 
-## Aspecto de bordado real
+## Vista de referencia (sin simular el hilo)
 
-El diseño no se pega tal cual: se «hila» en el worker (`embroidery-threadize.ts`) y se dibuja en capas
-(`embroidery-layers.ts`, lienzo de 1K en móvil y 2K en escritorio, a tamaño real en cm).
+El estudio 3D es solo una **referencia de colocación**: el diseño se proyecta plano sobre la prenda, a
+su tamaño real en cm, con la luz de la escena. No simula relieve, puntadas ni brillo de hilo (se quitó
+para que vaya ligero en móvil). El aviso al cliente está en `components/studio/aviso.ts`.
 
-**Capas:**
-- **Color**: solo hilos de la carta (máx. 12), sin degradados. Lleva una oclusión suave entre puntadas.
-- **Relieve** (*normal map*):
-  - relleno en líneas paralelas de dirección constante (cambia por zona);
-  - bordes en satín, perpendiculares al contorno.
-- **Brillo del hilo**: material con anisotropía. Brilla en la dirección de la puntada, más que la felpa mate.
-- **Sombra de contacto**, que también insinúa el fruncido de la tela alrededor.
-
-El decal se proyecta en cm reales (mover, escalar, girar) y funciona con cualquier color de prenda y de hilo.
-Si un hilo casi no se distingue de la prenda, el panel avisa.
-
-**Limitaciones:**
-- el fruncido (*puckering*) es solo la sombra, no deforma la malla;
-- bajo las luces del estudio el hilo se ve un poco más claro que en la carta.
+Las zonas de bordado (pecho, mangas, espalda…) se definen en cm desde el punto alto del cuello en
+`components/studio/zones.ts`: las usan «Diseña tu prenda» (opción «adjuntar imagen»), el formulario
+«Te lo diseñamos» y las fotos de producto (`npm run mockups`).
 
 **Limitación:** la espalda la inventó Meshy (no viene de una foto). Por eso hay alguna arruga poco natural en la zona baja de la espalda.
 

@@ -68,6 +68,30 @@ Esa página usa `templates/page.faq.json`.
 
 Textos base de las páginas legales: `contenido/*.html` (BORRADOR, con marcadores).
 
+## «Diseña tu prenda»
+
+Una sola columna (`components/studio/design-studio.tsx`):
+1. prenda, talla (con la tabla de medidas abierta) y color;
+2. el bordado, en el estudio 3D o adjuntando una imagen y marcando zonas y ancho en cm
+   (`image-placement.tsx`, zonas en `zones.ts`);
+3. cálculo automático (calculadora);
+4. «Añadir al carrito» (casilla obligatoria de vista orientativa) o «Enviar mi diseño».
+
+Debajo, con enlace desde arriba (`#te-lo-disenamos`): «¿Prefieres que te lo diseñemos nosotros?»
+(`src/design-request.tsx`). Aviso del 3D en un solo sitio: `components/studio/aviso.ts`.
+
+## Logo
+
+Archivos en `marca/` (sacados del logo original sin redibujar: misma forma, fondo transparente):
+`br-logo-oscuro.png` (fondos claros: cabecera), `br-logo-crema.png` (fondos oscuros: hero, pie,
+cabecera transparente), `br-favicon.png` (512 px) y `br-og.jpg` (imagen para redes, 1200 × 630).
+
+## Fotos de producto (mockups)
+
+`npm run mockups -- ruta/coleccion.json` genera fotos WebP de cada producto con la sudadera del estudio
+(mismo corte y acabado), teñida del color del producto y con sus diseños en su zona y tamaño real.
+Formato del JSON en `tools/mockups.ts`.
+
 ## Calculadora de bordado
 
 Ver [CALCULADORA.md](./CALCULADORA.md): estimación de puntadas y colores, tramos de precio, productos ocultos,

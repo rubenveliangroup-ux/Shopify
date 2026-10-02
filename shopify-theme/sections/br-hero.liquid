@@ -1,5 +1,6 @@
 {%- comment -%}
-  BR · Hero de portada a pantalla completa: foto o vídeo, titular corto, frase y dos botones.
+  BR · Hero de portada a pantalla completa: foto o vídeo, titular corto, frase y tres botones
+  (el tercero, «Impulsa tu marca», con el estilo destacado de la marca).
   La imagen/vídeo del hero se carga sin diferir (es lo primero que se ve).
 {%- endcomment -%}
 {{ 'br-landing.css' | asset_url | stylesheet_tag }}
@@ -29,9 +30,10 @@
     {%- if s.eyebrow != blank -%}<p class="br-eyebrow">{{ s.eyebrow }}</p>{%- endif -%}
     <h1 class="br-h1">{{ s.heading }}</h1>
     {%- if s.text != blank -%}<p class="br-lead">{{ s.text }}</p>{%- endif -%}
-    <div class="br-btns br-btns--stack">
+    <div class="br-btns br-btns--hero">
       {%- if s.button_1_label != blank -%}<a class="br-btn br-btn--light" href="{{ s.button_1_link | default: routes.all_products_collection_url }}">{{ s.button_1_label }}</a>{%- endif -%}
       {%- if s.button_2_label != blank -%}<a class="br-btn br-btn--line-light" href="{{ s.button_2_link | default: '/pages/disena-tu-prenda' }}">{{ s.button_2_label }}</a>{%- endif -%}
+      {%- if s.button_3_label != blank -%}<a class="br-btn br-btn--brand" href="{{ s.button_3_link | default: '/pages/impulsa-tu-marca' }}">{% render 'br-estrella' %}{{ s.button_3_label }}</a>{%- endif -%}
     </div>
   </div>
 </section>
@@ -54,7 +56,9 @@
     { "type": "text", "id": "button_1_label", "label": "Botón 1", "default": "Ver catálogo" },
     { "type": "url", "id": "button_1_link", "label": "Enlace del botón 1" },
     { "type": "text", "id": "button_2_label", "label": "Botón 2", "default": "Diseña tu prenda" },
-    { "type": "url", "id": "button_2_link", "label": "Enlace del botón 2" }
+    { "type": "url", "id": "button_2_link", "label": "Enlace del botón 2" },
+    { "type": "text", "id": "button_3_label", "label": "Botón 3 (destacado)", "default": "Impulsa tu marca" },
+    { "type": "url", "id": "button_3_link", "label": "Enlace del botón 3" }
   ],
   "presets": [{ "name": "BR · Hero" }]
 }

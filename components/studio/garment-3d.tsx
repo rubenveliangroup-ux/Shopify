@@ -40,22 +40,17 @@ export type Garment3DProps = {
 const CAM_Z = 3.7;
 const CAM_Y = 0.12;
 
-function canvasTexture(c: HTMLCanvasElement, srgb: boolean) {
+function canvasTexture(c: HTMLCanvasElement) {
   const t = new THREE.CanvasTexture(c);
-  t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 4;
   return t;
 }
 
-/** Texturas de las capas del bordado de cada lado; se suben a la GPU cuando cambia la versión. */
+/** Textura del diseño de cada lado; se sube a la GPU cuando cambia la versión. */
 function useDesignTextures(layers: Record<Side, DesignLayers>, version: number) {
   const tex = useMemo(() => {
-    const make = (l: DesignLayers): DesignTextures => ({
-      map: canvasTexture(l.color, true),
-      normalMap: canvasTexture(l.normal, false),
-      anisoMap: canvasTexture(l.aniso, false),
-      shadowMap: canvasTexture(l.shadow, true)
-    });
+    const make = (l: DesignLayers): DesignTextures => ({ map: canvasTexture(l.color) });
     return { delante: make(layers.delante), detras: make(layers.detras) };
   }, [layers]);
   const invalidate = useThree((s) => s.invalidate);

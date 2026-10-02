@@ -31,14 +31,27 @@
   {%- endcomment -%}
   {%- form 'contact', id: 'br-send-form', class: 'br-send-form' -%}
     {%- if form.posted_successfully? -%}
-      <div class="br-send-ok" role="status" tabindex="-1">
-        <strong>¡Diseño enviado!</strong>
-        <span>Lo hemos recibido con tu resumen y la vista previa. Te escribiremos a tu email con el boceto y el precio, normalmente en 24-48 h laborables. Si quieres añadir algo, responde a nuestro email.</span>
+      {%- comment -%} Un solo formulario para «Enviar mi diseño» y «Te lo diseñamos nosotros»: el texto se elige al volver {%- endcomment -%}
+      <div class="br-send-ok" id="br-send-ok" role="status" tabindex="-1">
+        <strong data-msg-diseno="¡Diseño enviado!" data-msg-encargo="¡Solicitud recibida!">¡Recibido!</strong>
+        <span
+          data-msg-diseno="Lo hemos recibido con tu resumen y la vista previa. Te escribiremos a tu email con el boceto y el precio, normalmente en 24-48 h laborables. Si quieres añadir algo, responde a nuestro email."
+          data-msg-encargo="Hemos recibido tu solicitud, te contactaremos para darte un presupuesto. Si quieres añadir algo, responde a nuestro email."
+        >Te escribiremos a tu email muy pronto. Si quieres añadir algo, responde a nuestro email.</span>
       </div>
+      <script>
+        (function () {
+          var k; try { k = sessionStorage.getItem('br-envio'); sessionStorage.removeItem('br-envio'); } catch (e) {}
+          var box = document.getElementById('br-send-ok');
+          if (!box) return;
+          if (k === 'diseno' || k === 'encargo') box.querySelectorAll('[data-msg-' + k + ']').forEach(function (n) { n.textContent = n.getAttribute('data-msg-' + k); });
+          box.scrollIntoView({ block: 'center' }); box.focus({ preventScroll: true });
+        })();
+      </script>
     {%- elsif form.errors -%}
       <div class="br-send-err" role="alert">No se pudo enviar el diseño: {{ form.errors | default_errors }}</div>
     {%- endif -%}
-    <input type="hidden" name="contact[Origen]" value="Diseña tu prenda · Enviar mi diseño">
+    <input type="hidden" name="contact[Origen]" value="Diseña tu prenda">
   {%- endform -%}
   <style>
     .br-send-form { max-width: 72rem; margin: 0 auto; padding: 0 1rem; }
@@ -93,7 +106,12 @@
     }
   </script>
   <div id="br-studio">
-    <div style="min-height:60vh;display:grid;place-items:center;font-size:14px;opacity:.6">Preparando el estudio…</div>
+    <div style="min-height:60vh;display:grid;place-items:center;align-content:center;gap:16px;font-size:14px;color:rgba(27,26,23,.6)">
+      {%- if settings.logo != blank -%}
+        {{ settings.logo | image_url: width: 240 | image_tag: loading: 'eager', alt: shop.name, style: 'width:120px;height:auto;opacity:.85' }}
+      {%- endif -%}
+      Preparando el estudio…
+    </div>
   </div>
   <noscript><p style="text-align:center;padding:2rem">Activa JavaScript para usar el estudio de diseño.</p></noscript>
 </div>

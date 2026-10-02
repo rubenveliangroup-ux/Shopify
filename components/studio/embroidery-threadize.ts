@@ -1,6 +1,6 @@
 /**
  * «Hilado» del diseño: convierte la imagen del cliente en lo que de verdad se puede bordar y
- * de ahí salen a la vez la ESTIMACIÓN de puntadas y las TEXTURAS del bordado en 3D.
+ * de ahí sale la ESTIMACIÓN de puntadas y de hilos (el estudio 3D solo muestra la colocación).
  * Sin DOM: se ejecuta en un Web Worker (embroidery-worker.ts) para no bloquear la interfaz.
  *
  * 1. Colores: k-means en Lab (semilla fija), fusión de tonos parecidos, sin halos de suavizado
@@ -12,8 +12,6 @@
  *    `anchoMaxLineaMm` son líneas (satén); el resto, relleno (tatami) con remate en el borde.
  * 4. Puntadas = relleno cm² × PUNTADAS_POR_CM2 + borde de rellenos cm × puntadasPorCmBorde
  *    + longitud de líneas cm × PUNTADAS_POR_CM_LINEA.
- * 5. Texturas: color de hilo, relieve (normal map), dirección de la puntada (anisotropía del
- *    brillo) y sombreado para la vista 2D.
  */
 import { labToHex, rgbToLab, type Lab } from '../color/color-math';
 import { nearestThread, type Thread } from '../color/threads';
@@ -51,24 +49,9 @@ export type ThreadizeInput = {
   cmPerPx: number;
   threads: Thread[];
   cfg: EmbroideryConfig;
-  /** Generar texturas (si no, solo la estimación). */
-  maps: boolean;
 };
 
-export type ThreadMaps = {
-  w: number;
-  h: number;
-  /** Color del hilo (RGBA, alfa del diseño). */
-  color: Uint8ClampedArray;
-  /** Normal map en espacio tangente (RGB). */
-  normal: Uint8ClampedArray;
-  /** Anisotropía: RG = dirección de la puntada, B = intensidad (convención de three.js). */
-  aniso: Uint8ClampedArray;
-  /** Luces/sombras del relieve en gris con alfa, para fundir en «overlay» en 2D. */
-  shade: Uint8ClampedArray;
-};
-
-export type ThreadizeResult = { analysis: DesignAnalysis | null; maps: ThreadMaps | null };
+export type ThreadizeResult = { analysis: DesignAnalysis | null };
 
 const K = 16;
 const MERGE_DELTA_E = 18;
@@ -76,11 +59,6 @@ const MAX_SAMPLES = 24000;
 const ALPHA_MIN = 128;
 const MIN_DETAIL_CM2 = 0.2;
 const MIN_ISLAND_CM2 = 0.02; // 2 mm²: menos que esto no se puede bordar como detalle
-/** Aspecto de la puntada (mm). */
-const ROW_MM = 0.8; // separación visual entre filas del relleno
-const STITCH_MM = 4; // largo de puntada del tatami
-const SATIN_BAND_MM = 1.1; // remate en satén del borde de los rellenos
-const EDGE_SOFT_MM = 0.5; // redondeo del canto del hilo
 
 export function threadize(input: ThreadizeInput): ThreadizeResult {
   const { rgba: data, w, h, cmPerPx, cfg } = input;
@@ -103,7 +81,7 @@ export function threadize(input: ThreadizeInput): ThreadizeResult {
       if (y > maxY) maxY = y;
     }
   }
-  if (!covered) return { analysis: null, maps: null };
+  if (!covered) return { analysis: null };
 
   // ---------------------------------------------------------------- 2. colores → hilos
   const { centroids, label: clusterLabel } = clusterColors(data, mask, w, h, pxArea, cfg);
@@ -140,7 +118,7 @@ export function threadize(input: ThreadizeInput): ThreadizeResult {
   label = removeIslands(label, w, h, Math.max(2, MIN_ISLAND_CM2 / pxArea));
   let used = 0;
   for (let i = 0; i < n; i++) if (label[i] >= 0) used++;
-  if (!used) return { analysis: null, maps: null };
+  if (!used) return { analysis: null };
 
   // ---------------------------------------------------------------- 4. relleno / línea
   const dist = distanceToRegionEdge(label, w, h);
@@ -201,10 +179,7 @@ export function threadize(input: ThreadizeInput): ThreadizeResult {
     thinLines: thinCm > 0.8 && thinRidgePx / Math.max(1, ridgePx) > 0.04,
     tooSmall: Math.min(widthCm, heightCm) < cfg.tamanoMinimoCm
   };
-  if (!input.maps) return { analysis, maps: null };
-
-  // ---------------------------------------------------------------- 5. texturas
-  return { analysis, maps: buildMaps(data, label, dist, fill, slotHex, w, h, mmPerPx) };
+  return { analysis };
 }
 
 // ------------------------------------------------------------------ colores
@@ -393,117 +368,6 @@ function fillMask(label: Int16Array, dist: Float32Array, w: number, h: number, h
   const fill = new Uint8Array(n);
   for (let i = 0; i < n; i++) if (label[i] >= 0 && d2[i] <= half + 1.5) fill[i] = 1;
   return fill;
-}
-
-// ------------------------------------------------------------------ texturas
-
-function buildMaps(src: Uint8ClampedArray, label: Int16Array, dist: Float32Array, fill: Uint8Array, slotHex: string[], w: number, h: number, mmPerPx: number): ThreadMaps {
-  const n = w * h;
-  const rgb = slotHex.map((hx) => [parseInt(hx.slice(1, 3), 16), parseInt(hx.slice(3, 5), 16), parseInt(hx.slice(5, 7), 16)]);
-  const color = new Uint8ClampedArray(n * 4);
-  const height = new Float32Array(n);
-  const dirX = new Float32Array(n);
-  const dirY = new Float32Array(n);
-  const rowPx = Math.max(1.6, ROW_MM / mmPerPx);
-  const stitchPx = STITCH_MM / mmPerPx;
-  const bandPx = SATIN_BAND_MM / mmPerPx;
-  const softPx = Math.max(1, EDGE_SOFT_MM / mmPerPx);
-
-  for (let y = 0; y < h; y++)
-    for (let x = 0; x < w; x++) {
-      const i = y * w + x;
-      const l = label[i];
-      if (l < 0) continue;
-      const c = rgb[l];
-      color[i * 4] = c[0];
-      color[i * 4 + 1] = c[1];
-      color[i * 4 + 2] = c[2];
-      color[i * 4 + 3] = Math.max(src[i * 4 + 3], 200);
-
-      const v = dist[i];
-      const satin = !fill[i] || v <= bandPx;
-      let ux: number, uy: number;
-      if (satin) {
-        // Satén: el hilo cruza la columna → dirección del gradiente de la distancia
-        const gx = (x < w - 1 && label[i + 1] === l ? dist[i + 1] : v) - (x > 0 && label[i - 1] === l ? dist[i - 1] : v);
-        const gy = (y < h - 1 && label[i + w] === l ? dist[i + w] : v) - (y > 0 && label[i - w] === l ? dist[i - w] : v);
-        const g = Math.hypot(gx, gy) || 1;
-        ux = gx / g;
-        uy = gy / g;
-        if (!gx && !gy) (ux = 1), (uy = 0);
-      } else {
-        // Relleno: ángulo constante por color (como al picar), 45° + 60° por cada hilo
-        const a = ((45 + 60 * l) * Math.PI) / 180;
-        ux = Math.cos(a);
-        uy = Math.sin(a);
-      }
-      dirX[i] = ux;
-      dirY[i] = uy;
-      // Altura: canto redondeado + textura de puntada
-      const dome = Math.sqrt(Math.min(1, v / softPx));
-      let tex: number;
-      if (satin) {
-        const along = -x * uy + y * ux; // a lo largo de la columna: hilos uno al lado de otro
-        tex = 0.9 + 0.1 * Math.cos((2 * Math.PI * along) / 1.6);
-        height[i] = dome * 1.15 * tex;
-      } else {
-        const u = x * ux + y * uy; // a lo largo del hilo
-        const vv = -x * uy + y * ux; // entre filas
-        const row = Math.floor(vv / rowPx);
-        const phase = (((u + row * stitchPx * 0.33) % stitchPx) + stitchPx) % stitchPx;
-        const groove = phase < 1 ? 0.75 : 1; // las puntadas del tatami dejan un pequeño hueco
-        tex = (0.88 + 0.12 * Math.cos((2 * Math.PI * vv) / rowPx)) * groove;
-        height[i] = dome * tex;
-      }
-    }
-
-  // Oclusión fina de las puntadas en el propio color (se ve también sin luz rasante)
-  for (let i = 0; i < n; i++) {
-    if (label[i] < 0) continue;
-    const k = 0.8 + 0.2 * Math.min(1, height[i]);
-    color[i * 4] *= k;
-    color[i * 4 + 1] *= k;
-    color[i * 4 + 2] *= k;
-  }
-
-  const normal = new Uint8ClampedArray(n * 4);
-  const aniso = new Uint8ClampedArray(n * 4);
-  const shade = new Uint8ClampedArray(n * 4);
-  const STRENGTH = 2.6;
-  for (let y = 0; y < h; y++) {
-    const y0 = Math.max(0, y - 1);
-    const y1 = Math.min(h - 1, y + 1);
-    for (let x = 0; x < w; x++) {
-      const i = y * w + x;
-      const j = i * 4;
-      const x0 = Math.max(0, x - 1);
-      const x1 = Math.min(w - 1, x + 1);
-      const dx = (height[y * w + x1] - height[y * w + x0]) * STRENGTH;
-      // La imagen crece hacia abajo y la textura hacia arriba: se invierte dy
-      const dy = (height[y0 * w + x] - height[y1 * w + x]) * STRENGTH;
-      const len = Math.hypot(dx, dy, 1);
-      const nx = -dx / len, ny = -dy / len, nz = 1 / len;
-      normal[j] = (nx * 0.5 + 0.5) * 255;
-      normal[j + 1] = (ny * 0.5 + 0.5) * 255;
-      normal[j + 2] = (nz * 0.5 + 0.5) * 255;
-      normal[j + 3] = 255;
-      if (label[i] < 0) {
-        aniso[j] = 128;
-        aniso[j + 1] = 128;
-        continue;
-      }
-      // Dirección en espacio tangente (x a la derecha, y hacia arriba)
-      aniso[j] = (dirX[i] * 0.5 + 0.5) * 255;
-      aniso[j + 1] = (-dirY[i] * 0.5 + 0.5) * 255;
-      aniso[j + 2] = 255;
-      aniso[j + 3] = 255;
-      // Luz de arriba a la izquierda para la vista 2D (>128 aclara, <128 oscurece)
-      const lit = (-nx * 0.5 + ny * 0.5 + nz * 0.7 - 0.7) * 2.4 + (height[i] - 0.95) * 0.6;
-      shade[j] = shade[j + 1] = shade[j + 2] = Math.max(0, Math.min(255, 128 + lit * 128));
-      shade[j + 3] = color[j + 3];
-    }
-  }
-  return { w, h, color, normal, aniso, shade };
 }
 
 // ------------------------------------------------------------------ utilidades de color

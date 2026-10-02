@@ -1,13 +1,12 @@
 import { cn } from '@/lib/utils';
 
-/** Placeholder tipográfico hasta tener el logotipo definitivo (sustituir por SVG). */
-export function Logo({ className }: { className?: string }) {
+/**
+ * Logo de BR (firma con estrella). Dos versiones con la misma forma (shopify-theme/marca/):
+ * oscura para fondos claros y crema para fondos oscuros.
+ */
+export function Logo({ className, tone = 'oscuro' }: { className?: string; tone?: 'oscuro' | 'crema' }) {
   return (
-    <span className={cn('flex items-baseline gap-2', className)}>
-      <span className="font-display text-2xl font-semibold tracking-tight">BR</span>
-      <span className="hidden text-[10px] font-semibold uppercase tracking-[0.25em] text-tinta-500 sm:inline">
-        Estudio de bordado
-      </span>
-    </span>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={`/marca/br-logo-${tone}.png`} alt="BR" width={1713} height={871} className={cn('h-9 w-auto', className)} />
   );
 }

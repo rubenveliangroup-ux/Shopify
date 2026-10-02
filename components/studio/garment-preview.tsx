@@ -8,7 +8,7 @@ import type { ModelInfo, SizeRow } from './garment-glb';
 /**
  * Vista previa de la prenda. Decide entre:
  *  - 3D (GLB): se descarga en un chunk aparte, solo en el estudio y después de cargar la página;
- *  - ligera 2D: foto de la prenda (render del mismo modelo) teñida del color elegido con el diseño
+ *  - ligera 2D: foto de referencia de la prenda (encajada con el modelo) teñida del color elegido con el diseño
  *    encima. Se usa si no hay WebGL, el dispositivo es muy justo, la carga falla o el 3D va a tirones.
  * Forzar un modo para probar: ?modo3d=ligero o ?modo3d=3d.
  */
@@ -20,11 +20,11 @@ const Garment3D = lazy(() => import('./garment-3d'));
 type Props = {
   color: string;
   view: Side;
-  /** Capas del bordado (color de hilo, relieve, sombra…) de cada lado y su versión. */
+  /** Diseño de cada lado (lienzo completo) y su versión. */
   layers: Record<Side, DesignLayers>;
   version: number;
   modelUrl?: string;
-  /** Fotos (render neutro, blanco) delante/detrás con el encuadre LITE_FRAME (config.ts). */
+  /** Fotos (gris neutro para teñir) delante/detrás con el encuadre LITE_FRAME (config.ts). */
   liteImages?: Partial<Record<Side, string>>;
   size?: string;
   sizes?: SizeRow[];
@@ -168,7 +168,7 @@ export function loadImage(url: string) {
 }
 
 /**
- * Tiñe el render neutro (blanco) de la prenda: color × luz por multiplicación, más un brillo
+ * Tiñe la foto neutra (gris) de la prenda: color × luz por multiplicación, más un brillo
  * aterciopelado en colores oscuros para que no se pierdan los pliegues (como hace el sheen en 3D).
  */
 export function tintGarment(img: HTMLImageElement, hex: string, size: number, crop?: 'lienzo'): HTMLCanvasElement {
@@ -193,7 +193,7 @@ export function tintGarment(img: HTMLImageElement, hex: string, size: number, cr
   const dark = 1 - Math.min(1, lum * 3);
   for (let i = 0; i < p.length; i += 4) {
     if (!p[i + 3]) continue;
-    const s = lin(p[i]) / 0.86; // el render neutro tiene el blanco de la tela en ~0,86 lineal
+    const s = lin(p[i]) / 0.86; // en la foto neutra, 0,86 lineal = tela blanca (la media está en ~0,64)
     const sheen = dark * 0.035 * Math.max(0, s - 0.6);
     for (let k = 0; k < 3; k++) p[i + k] = Math.min(255, srgb(Math.min(1, Math.max(t[k], 0.012) * s + sheen)));
   }
@@ -228,22 +228,9 @@ const LitePreview = forwardRef<PreviewHandle, Props>(function LitePreview({ colo
     ctx.clearRect(0, 0, S, S);
     const g = garments[side];
     if (g) ctx.drawImage(tintGarment(g, color, S), 0, 0);
-    // El bordado ocupa el rectángulo del lienzo dentro de la foto: mismo tamaño real que en 3D
-    const l = layers[side];
-    const x = PANEL_IN_LITE.x * S;
-    const y = PANEL_IN_LITE.y * S;
+    // El diseño ocupa el rectángulo del lienzo dentro de la foto: mismo tamaño real que en 3D
     const w = PANEL_IN_LITE.size * S;
-    ctx.drawImage(l.shadow, x, y, w, w);
-    // Hilo + luces y sombras de las puntadas (solo sobre el bordado)
-    const tmp = document.createElement('canvas');
-    tmp.width = tmp.height = Math.round(w);
-    const t = tmp.getContext('2d')!;
-    t.drawImage(l.color, 0, 0, w, w);
-    t.globalCompositeOperation = 'overlay';
-    t.drawImage(l.shade, 0, 0, w, w);
-    t.globalCompositeOperation = 'destination-in';
-    t.drawImage(l.color, 0, 0, w, w);
-    ctx.drawImage(tmp, x, y);
+    ctx.drawImage(layers[side].color, PANEL_IN_LITE.x * S, PANEL_IN_LITE.y * S, w, w);
   };
 
   useEffect(() => {

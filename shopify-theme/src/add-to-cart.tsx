@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CloseIcon } from '@/components/icons';
 import type { CheckoutProps } from '@/components/studio/design-studio';
 import { AVISO_COLOR_LIBRE } from '@/components/color/color-config';
+import { AVISO_3D, AVISO_3D_CARRITO } from '@/components/studio/aviso';
 import { threadLabel } from '@/components/color/threads';
 import { fmtEur, fmtInt } from '@/components/studio/embroidery-pricing';
 import { SizeChart, type SizeChartData } from '@/components/studio/size-chart';
@@ -77,9 +78,13 @@ export function ShopifyAddToCart({ onClose, getAttachments, details, blockedReas
         est['_Tamaño del bordado'] = embroidery.sizes;
         est['_Tramo'] = q.kind === 'priced' ? q.tierLabel : 'Sujeto a presupuesto (no se ha cobrado el extra)';
         if (q.kind === 'priced') est['_Extra de bordado'] = `${fmtEur(q.total)} por unidad`;
+        est['_Precio estimado del bordado'] = q.kind === 'priced' ? `${fmtEur(q.total)} (aproximado)` : 'Presupuesto personalizado';
       }
 
       const mainProps: Record<string, string> = Object.fromEntries(details.filter(([k]) => k !== 'Prenda'));
+      // Aviso visible en el carrito, el checkout y el pedido + casilla aceptada (privado)
+      mainProps['Importante'] = AVISO_3D_CARRITO;
+      est['_Vista 3D orientativa'] = 'Aceptado por el cliente antes de añadir al carrito';
       if (notes.trim()) mainProps['Notas'] = notes.trim().slice(0, 500);
       // Color de prenda libre: aviso visible en carrito y pedido + hex exacto (privado)
       if (garment?.free) {
@@ -170,7 +175,7 @@ export function ShopifyAddToCart({ onClose, getAttachments, details, blockedReas
           <p className="mt-5 rounded-xl bg-oro-100 px-4 py-3 text-sm">{blockedReason}</p>
         ) : (
           <>
-            <fieldset className="mt-6">
+            <fieldset className="mt-6 min-w-0">
               <legend className="label">Talla *</legend>
               <div className="flex flex-wrap gap-2">
                 {variants.map((v) => (
@@ -193,7 +198,7 @@ export function ShopifyAddToCart({ onClose, getAttachments, details, blockedReas
                   </button>
                 ))}
               </div>
-              {sizeChart ? (
+              {sizeChart && !size ? (
                 <SizeChart data={sizeChart} highlight={variants.find((v) => v.id === variantId)?.title} />
               ) : (
                 <p className="mt-2 text-xs text-tinta-500">Corte oversize: si prefieres un ajuste más clásico, elige una talla menos.</p>
@@ -246,7 +251,8 @@ export function ShopifyAddToCart({ onClose, getAttachments, details, blockedReas
               </dl>
             )}
 
-            <ul className="mt-5 space-y-1 text-xs text-tinta-700">
+            <p className="mt-5 rounded-xl bg-oro-100 px-4 py-3 text-xs">{AVISO_3D}</p>
+            <ul className="mt-3 space-y-1 text-xs text-tinta-700">
               <li>✓ Tus archivos y especificaciones se adjuntan al pedido.</li>
               <li>✓ Antes de bordar te enviamos el boceto por email para que lo apruebes.</li>
             </ul>

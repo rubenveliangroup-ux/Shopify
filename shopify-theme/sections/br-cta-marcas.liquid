@@ -11,7 +11,7 @@
       {%- if s.points != blank -%}
         <ul class="br-cta__list">{%- for p in puntos -%}{%- assign p = p | strip -%}{%- if p != blank -%}<li>{{ p }}</li>{%- endif -%}{%- endfor -%}</ul>
       {%- endif -%}
-      <div class="br-btns"><a class="br-btn br-btn--light" href="{{ s.button_link | default: '/pages/impulsa-tu-marca#contacto' }}">{{ s.button_label }}</a></div>
+      <div class="br-btns"><a class="br-btn br-btn--brand" href="{{ s.button_link | default: '/pages/impulsa-tu-marca#contacto' }}">{% render 'br-estrella' %}{{ s.button_label }}</a></div>
     </div>
     {%- if s.image != blank -%}
       <div class="br-cta__media">{{ s.image | image_url: width: 1200 | image_tag: loading: 'lazy', widths: '400, 800, 1200', sizes: '(min-width: 990px) 40vw, 100vw', alt: s.image.alt }}</div>

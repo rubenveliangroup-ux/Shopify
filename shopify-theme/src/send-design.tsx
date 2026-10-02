@@ -6,6 +6,7 @@ import { submitContactForm, uploadViaCart } from '@/components/forms/upload-via-
 import type { CheckoutProps } from '@/components/studio/design-studio';
 import { fmtEur, fmtInt } from '@/components/studio/embroidery-pricing';
 import type { ShopifyVariant } from './add-to-cart';
+import { SENT_KEY } from './design-request';
 
 export type SendConfig = {
   /** id del formulario de contacto oculto de la sección ({% form 'contact' %}). */
@@ -92,10 +93,16 @@ export function ShopifySendDesign({ onClose, getAttachments, details, embroidery
         '',
         'Cálculo aproximado. El precio final se confirma tras digitalizar el diseño.'
       ].join('\n');
+      try {
+        sessionStorage.setItem(SENT_KEY, 'diseno');
+      } catch {
+        /* sin almacenamiento: se verá la confirmación genérica */
+      }
       submitContactForm(form, {
         'contact[name]': name.trim(),
         'contact[email]': email.trim(),
         'contact[phone]': phone.trim(),
+        'contact[Tipo de solicitud]': 'Enviar mi diseño (hecho en el estudio)',
         'contact[body]': body
       });
     } catch (err) {

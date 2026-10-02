@@ -4,7 +4,6 @@ import { useLoader, useThree } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { DecalGeometry } from 'three/examples/jsm/geometries/DecalGeometry.js';
-import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
@@ -24,8 +23,8 @@ export { NECK_Y, PANEL_Y } from './garment-material';
 
 export type SizeRow = { talla: string; largo: number; pecho: number; bajo: number; manga: number };
 export type ModelInfo = { baseSize: string; sizesByZone: boolean };
-/** Texturas del bordado de un lado (ver embroidery-layers.ts). */
-export type DesignTextures = { map: THREE.Texture; normalMap: THREE.Texture; anisoMap: THREE.Texture; shadowMap: THREE.Texture };
+/** Textura del diseño de un lado (ver embroidery-layers.ts). */
+export type DesignTextures = { map: THREE.Texture };
 
 /** Marcas que escribe preparar-prenda.mjs en extras.br (metros, origen en el punto alto del hombro). */
 type Landmarks = { tallaBase: string; bajoY: number; canaleArribaY: number; hombroY: number };
@@ -88,14 +87,12 @@ export function GarmentGLB({ url, color, design, size, sizes, onReady, onSilhoue
     invalidate();
   }, [model, base, target, invalidate]);
 
-  // Bordados: diseño + relieve + sombra de contacto, proyectados delante y detrás
+  // Diseños proyectados delante y detrás (referencia de colocación, sin simular el hilo)
   const decals = useMemo(() => {
-    const make = (layers: DesignTextures) => {
-      const shadow = new THREE.Mesh(undefined, shadowMaterial(layers.shadowMap));
-      const thread = new THREE.Mesh(undefined, embroideryMaterial(layers));
-      shadow.renderOrder = 1;
-      thread.renderOrder = 2;
-      return { shadow, thread };
+    const make = (t: DesignTextures) => {
+      const mesh = new THREE.Mesh(undefined, designMaterial(t.map));
+      mesh.renderOrder = 2;
+      return mesh;
     };
     return { delante: make(design.delante), detras: make(design.detras) };
   }, [design]);
@@ -103,21 +100,12 @@ export function GarmentGLB({ url, color, design, size, sizes, onReady, onSilhoue
     model.mesh.updateWorldMatrix(true, false);
     const geo = projectDesigns(model.mesh);
     for (const s of ['delante', 'detras'] as const) {
-      decals[s].thread.geometry.dispose();
-      decals[s].thread.geometry = geo[s];
-      decals[s].shadow.geometry = geo[s];
+      decals[s].geometry.dispose();
+      decals[s].geometry = geo[s];
     }
     invalidate();
   }, [model, target, decals, invalidate]);
-  useEffect(
-    () => () => {
-      for (const s of ['delante', 'detras'] as const) {
-        (decals[s].thread.material as THREE.Material).dispose();
-        (decals[s].shadow.material as THREE.Material).dispose();
-      }
-    },
-    [decals]
-  );
+  useEffect(() => () => ['delante', 'detras'].forEach((s) => (decals[s as Side].material as THREE.Material).dispose()), [decals]);
 
   useEffect(() => {
     onReady?.({ baseSize: model.baseSize, sizesByZone: !!model.zones });
@@ -136,10 +124,8 @@ export function GarmentGLB({ url, color, design, size, sizes, onReady, onSilhoue
       <group position={[0, NECK_Y, 0]} scale={UNITS_PER_METER}>
         <primitive object={model.root} />
       </group>
-      <primitive object={decals.delante.shadow} />
-      <primitive object={decals.delante.thread} />
-      <primitive object={decals.detras.shadow} />
-      <primitive object={decals.detras.thread} />
+      <primitive object={decals.delante} />
+      <primitive object={decals.detras} />
     </>
   );
 }
@@ -246,7 +232,7 @@ export function projectDesigns(target: THREE.Mesh): Record<Side, THREE.BufferGeo
   back.geometry.dispose();
   lift(geo.delante, 0.003); // ~1 mm hacia fuera: la prenda no tapa el bordado
   lift(geo.detras, -0.003);
-  return { delante: withTangents(geo.delante), detras: withTangents(geo.detras) };
+  return geo;
 }
 
 /** Copia de la malla (en coordenadas de mundo) con solo los triángulos que miran hacia ±Z. */
@@ -272,25 +258,6 @@ function facing(mesh: THREE.Mesh, dir: 1 | -1): THREE.Mesh {
   return new THREE.Mesh(out);
 }
 
-/**
- * Tangentes suaves para el relieve y el brillo direccional del hilo: sin ellas se calculan por
- * triángulo y se ven las facetas de la malla como «rayos» sobre el bordado.
- */
-function withTangents(g: THREE.BufferGeometry) {
-  if (!g.attributes.position.count) return g;
-  // DecalGeometry no se puede clonar (su constructor necesita argumentos): copia plana
-  const plain = new THREE.BufferGeometry();
-  for (const [k, a] of Object.entries(g.attributes)) plain.setAttribute(k, a);
-  const m = mergeVertices(plain, 1e-5);
-  try {
-    m.computeTangents();
-  } catch {
-    return g;
-  }
-  g.dispose();
-  return m;
-}
-
 /** Desplaza el bordado hacia el lado desde el que se proyecta (no depende de las normales del GLB). */
 function lift(g: THREE.BufferGeometry, dz: number) {
   const p = g.attributes.position as THREE.BufferAttribute;
@@ -298,38 +265,16 @@ function lift(g: THREE.BufferGeometry, dz: number) {
   p.needsUpdate = true;
 }
 
-/**
- * Hilo de bordado: brillo suave y DIRECCIONAL (anisotropía según la dirección de la puntada),
- * menos rugoso que la felpa mate pero sin aspecto de plástico, con el relieve de las puntadas.
- */
-function embroideryMaterial(t: DesignTextures) {
-  return new THREE.MeshPhysicalMaterial({
-    map: t.map,
-    normalMap: t.normalMap,
-    normalScale: new THREE.Vector2(1.4, 1.4),
-    anisotropy: 0.6,
-    anisotropyMap: t.anisoMap,
+/** El diseño tal cual sobre la tela, con la luz de la escena (mate, sin brillo de hilo). */
+function designMaterial(map: THREE.Texture) {
+  return new THREE.MeshStandardMaterial({
+    map,
     transparent: true,
-    roughness: 0.55,
+    roughness: 0.9,
     metalness: 0,
-    specularIntensity: 0.22,
-    envMapIntensity: 0.2,
     polygonOffset: true,
     polygonOffsetFactor: -4,
     polygonOffsetUnits: -4,
-    depthWrite: false
-  });
-}
-
-/** Sombra de contacto del hilo sobre la tela. */
-function shadowMaterial(map: THREE.Texture) {
-  return new THREE.MeshBasicMaterial({
-    map,
-    transparent: true,
-    toneMapped: false,
-    polygonOffset: true,
-    polygonOffsetFactor: -2,
-    polygonOffsetUnits: -2,
     depthWrite: false
   });
 }

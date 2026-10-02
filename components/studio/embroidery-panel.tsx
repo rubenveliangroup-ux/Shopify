@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { deltaE2000, hexToLab } from '../color/color-math';
 import { threadLabel } from '../color/threads';
-import type { Side } from './config';
+import { AVISO_3D } from './aviso';
 import { unionColors, type ColorStat, type DesignAnalysis } from './embroidery-estimate';
 import { fmtEur, fmtInt, formulaTierPrice, quote, round2, type EmbroideryPricing, type Quote } from './embroidery-pricing';
 
 export type EmbroideryEstimate = {
-  perSide: Record<Side, DesignAnalysis | null>;
+  /** Análisis de cada parte del bordado: lados del estudio (delante/detrás) o zonas de la prenda. */
+  perSide: Record<string, DesignAnalysis | null>;
   /** Puntadas estimadas con margen de seguridad (las que deciden el tramo). */
   stitches: number;
   rawStitches: number;
@@ -22,14 +23,21 @@ export type EmbroideryEstimate = {
   warnings: string[];
 };
 
-const sideLabel: Record<Side, string> = { delante: 'delante', detras: 'detrás' };
+const SIDE_LABELS: Record<string, string> = { delante: 'de delante', detras: 'de detrás' };
 
 /**
- * Combina delante + detrás: puntadas sumadas (los colores ya vienen como hilos reales del
- * hilado: dos colores con el mismo hilo son uno) y avisos.
+ * Combina las partes del bordado (delante + detrás, o cada zona elegida): puntadas sumadas (los
+ * colores ya vienen como hilos reales del hilado: dos colores con el mismo hilo son uno) y avisos.
+ * `labels`: nombre de cada parte en los avisos («del pecho izquierdo»…).
  */
-export function buildEstimate(p: EmbroideryPricing, perSide: Record<Side, DesignAnalysis | null>, garmentHex?: string): EmbroideryEstimate {
-  const used = (Object.keys(perSide) as Side[]).filter((s) => perSide[s]);
+export function buildEstimate(
+  p: EmbroideryPricing,
+  perSide: Record<string, DesignAnalysis | null>,
+  garmentHex?: string,
+  labels: Record<string, string> = SIDE_LABELS
+): EmbroideryEstimate {
+  const used = Object.keys(perSide).filter((s) => perSide[s]);
+  const sideLabel = (s: string) => labels[s] ?? s;
   const rawStitches = used.reduce((a, s) => a + perSide[s]!.rawStitches, 0);
   const stitches = Math.round(rawStitches * (1 + p.margenSeguridad));
   const colors = unionColors(used.map((s) => perSide[s]!.colors));
@@ -43,14 +51,14 @@ export function buildEstimate(p: EmbroideryPricing, perSide: Record<Side, Design
     const a = perSide[s]!;
     if (a.widthCm > p.bastidorAnchoCm + 0.05 || a.heightCm > p.bastidorAltoCm + 0.05)
       warnings.push(
-        `El diseño de ${sideLabel[s]} mide ≈ ${a.widthCm.toFixed(1)} × ${a.heightCm.toFixed(1)} cm y supera el área máxima de bordado (${p.bastidorAnchoCm} × ${p.bastidorAltoCm} cm). Redúcelo o lo bordaremos en varias partes (consúltanos).`
+        `El diseño ${sideLabel(s)} mide ≈ ${a.widthCm.toFixed(1)} × ${a.heightCm.toFixed(1)} cm y supera el área máxima de bordado (${p.bastidorAnchoCm} × ${p.bastidorAltoCm} cm). Redúcelo o lo bordaremos en varias partes (consúltanos).`
       );
     if (a.tooSmall)
-      warnings.push(`El diseño de ${sideLabel[s]} es muy pequeño (≈ ${a.widthCm.toFixed(1)} × ${a.heightCm.toFixed(1)} cm): los detalles podrían no apreciarse bordados.`);
+      warnings.push(`El diseño ${sideLabel(s)} es muy pequeño (≈ ${a.widthCm.toFixed(1)} × ${a.heightCm.toFixed(1)} cm): los detalles podrían no apreciarse bordados.`);
     if (a.whiteBackgroundRemoved)
-      warnings.push(`No contamos el fondo blanco de tu imagen (${sideLabel[s]}) como bordado. Si quieres ese blanco bordado, indícalo en las notas.`);
+      warnings.push(`No contamos el fondo blanco de tu imagen (${sideLabel(s)}) como bordado. Si quieres ese blanco bordado, indícalo en las notas.`);
     if (a.thinLines)
-      warnings.push(`El diseño de ${sideLabel[s]} tiene líneas de menos de ${p.grosorMinimoMm} mm: son demasiado finas para bordar bien y tendremos que engrosarlas o simplificarlas.`);
+      warnings.push(`El diseño ${sideLabel(s)} tiene líneas de menos de ${p.grosorMinimoMm} mm: son demasiado finas para bordar bien y tendremos que engrosarlas o simplificarlas.`);
   }
   if (garmentHex) {
     const g = hexToLab(garmentHex);
@@ -127,8 +135,8 @@ export function EmbroideryPanel({
           )}
           {q.kind === 'too-many-colors' && (
             <p className="mt-3 rounded-xl bg-hilo-100 px-3 py-2 text-sm text-hilo-600">
-              Tu diseño tiene más de {q.max} colores y nuestra máquina borda como máximo {q.max}. Simplifica los colores del diseño (o usa
-              «Envíanos tu diseño» y lo vemos contigo).
+              Tu diseño tiene más de {q.max} colores y bordamos como máximo {q.max}. Simplifica los colores del diseño o pídenos que te lo
+              diseñemos nosotros (más abajo).
             </p>
           )}
           {q.kind === 'quote-required' && (
@@ -149,7 +157,7 @@ export function EmbroideryPanel({
             <p key={w} className="mt-2 rounded-xl bg-oro-100 px-3 py-2 text-xs">⚠︎ {w}</p>
           ))}
 
-          <p className="mt-3 text-xs font-medium text-tinta-700">Cálculo aproximado. El precio final se confirma tras digitalizar el diseño.</p>
+          <p className="mt-3 rounded-xl bg-lino-100 px-3 py-2 text-xs font-medium text-tinta-700">{AVISO_3D}</p>
         </>
       )}
 

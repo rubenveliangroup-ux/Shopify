@@ -49,7 +49,7 @@ const cases: { name: string; expect: string; d: ReturnType<typeof design> }[] = 
 
 for (const c of cases) {
   const t0 = performance.now();
-  const r = threadize({ ...c.d, cmPerPx: CM_PER_PX, threads: DEFAULT_THREADS, cfg, maps: true });
+  const r = threadize({ ...c.d, cmPerPx: CM_PER_PX, threads: DEFAULT_THREADS, cfg });
   const ms = performance.now() - t0;
   const a = r.analysis!;
   const stitches = Math.round(a.rawStitches * (1 + cfg.margenSeguridad));

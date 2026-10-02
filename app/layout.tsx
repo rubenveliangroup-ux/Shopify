@@ -15,7 +15,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: { default: `${site.fullName} — ${site.tagline}`, template: `%s · ${site.name}` },
   description: site.description,
-  openGraph: { type: 'website', locale: 'es_ES', siteName: site.fullName },
+  openGraph: { type: 'website', locale: 'es_ES', siteName: site.fullName, images: ['/marca/br-og.jpg'] },
+  icons: { icon: '/marca/br-favicon.png', apple: '/marca/br-favicon.png' },
   twitter: { card: 'summary_large_image' }
 };
 

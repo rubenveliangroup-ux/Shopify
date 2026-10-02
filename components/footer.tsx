@@ -7,7 +7,7 @@ export function Footer() {
     <footer className="mt-24 bg-tinta text-lino">
       <div className="container-page grid gap-12 py-16 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div>
-          <Logo className="[&_span]:text-lino" />
+          <Logo tone="crema" />
           <p className="mt-4 max-w-xs font-display text-2xl leading-snug">{site.tagline}</p>
           <div className="stitch mt-6 w-40 text-oro" />
         </div>

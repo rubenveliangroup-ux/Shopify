@@ -12,7 +12,8 @@
     "test:3d": "esbuild shopify-theme/tools/test-px-cm.ts --bundle --platform=node --format=esm --alias:@=. --packages=external --log-level=error --outfile=node_modules/.cache/test-px-cm.mjs && node node_modules/.cache/test-px-cm.mjs",
     "glb:validar": "node shopify-theme/tools/validar-glb.mjs",
     "glb:optimizar": "node shopify-theme/tools/optimizar-glb.mjs",
-    "test:bordado": "esbuild shopify-theme/tools/test-bordado.ts --bundle --platform=node --format=esm --alias:@=. --packages=external --log-level=error --outfile=node_modules/.cache/test-bordado.mjs && node node_modules/.cache/test-bordado.mjs"
+    "test:bordado": "esbuild shopify-theme/tools/test-bordado.ts --bundle --platform=node --format=esm --alias:@=. --packages=external --log-level=error --outfile=node_modules/.cache/test-bordado.mjs && node node_modules/.cache/test-bordado.mjs",
+    "mockups": "esbuild shopify-theme/tools/mockups.ts --bundle --platform=node --format=esm --alias:@=. --packages=external --log-level=error --outfile=node_modules/.cache/mockups.mjs && node node_modules/.cache/mockups.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.114.0",

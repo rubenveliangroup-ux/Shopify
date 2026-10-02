@@ -13,7 +13,9 @@
         "button_1_label": "Ver catálogo",
         "button_1_link": "shopify://collections/all",
         "button_2_label": "Diseña tu prenda",
-        "button_2_link": "shopify://pages/disena-tu-prenda"
+        "button_2_link": "shopify://pages/disena-tu-prenda",
+        "button_3_label": "Impulsa tu marca",
+        "button_3_link": "shopify://pages/impulsa-tu-marca"
       }
     },
     "featured": {

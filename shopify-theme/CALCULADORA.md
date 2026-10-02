@@ -6,7 +6,10 @@ es solo una estimación para fijar precio. Cada pedido se revisa a mano antes de
 
 ## Cómo estima
 
-El diseño se **«hila»** (`embroidery-threadize.ts`, función pura) en un **Web Worker**
+Funciona igual con las dos formas de diseñar del paso 2 de «Diseña tu prenda»: en el **estudio 3D**
+(se analiza cada lado) o **adjuntando una imagen** y marcando zonas y ancho en cm (se analiza la imagen
+recortada a su contenido, al ancho indicado, en cada zona). El diseño se **«hila»**
+(`embroidery-threadize.ts`, función pura) en un **Web Worker**
 (`assets/br-bordado-worker.js`), así que la interfaz no se bloquea. Si el navegador no admite el worker,
 se hace en el hilo principal. Solo se recalcula cuando cambia el diseño (220 ms después del último cambio).
 
@@ -33,10 +36,11 @@ se hace en el hilo principal. Solo se recalcula cuando cambia el diseño (220 ms
    - líneas de menos de 1 mm;
    - fondo blanco ignorado;
    - **hilo que no se distingue de la prenda** (ΔE2000 < `contrasteMinimo`, 12).
-8. Texto fijo: «Cálculo aproximado. El precio final se confirma tras digitalizar el diseño».
+8. Junto al precio, el aviso del estudio 3D (`components/studio/aviso.ts`): referencia orientativa,
+   bordado a mano siguiendo las indicaciones, precio aproximado que se confirma tras digitalizar.
 
 Código:
-- `components/studio/embroidery-threadize.ts`: análisis y mapas de relieve;
+- `components/studio/embroidery-threadize.ts`: análisis;
 - `embroidery-worker.ts` y `embroidery-client.ts`: el worker;
 - `embroidery-pricing.ts`: todas las constantes y los tramos;
 - `embroidery-panel.tsx`: panel y modo calibración.
@@ -133,6 +137,13 @@ llamada, el estudio añade los extras por AJAX y la sudadera con el formulario d
 - La separación relleno/línea es geométrica: no sabe qué tipo de puntada elegirá quien digitalice
   (p. ej. un texto grueso puede ir en satín). Por eso el margen es del 20 %.
 
+## Lo que queda en la línea del pedido
+
+Visibles: color, cómo se diseñó, zona(s) y tamaño en cm, «Importante» (aviso de vista orientativa) y los
+archivos: diseño y «Vista 3D» (estudio) o «Imagen N» y «Vista de colocación» (imagen adjunta).
+Privadas (solo en el admin): puntadas estimadas, colores de hilo, tamaño, tramo, extra de bordado,
+precio estimado del bordado y «Vista 3D orientativa: aceptado» (casilla obligatoria antes del carrito).
+
 ## Enviar mi diseño
 
 Botón «Enviar mi diseño» en el estudio (y en el panel cuando hace falta presupuesto).
@@ -146,5 +157,10 @@ Botón «Enviar mi diseño» en el estudio (y en el panel cuando hace falta pres
 - Shopify no manda copia al cliente desde el formulario de contacto.
 - Sin servicios externos ni de pago.
 - Código: `shopify-theme/src/send-design.tsx`, `components/forms/upload-via-cart.ts`.
-  El formulario «Cuéntanos tu proyecto» usa lo mismo (`src/forms-entry.ts` → `assets/br-formularios.js`):
-  hasta 3 archivos de 15 MB (imagen, PDF, AI, EPS, SVG).
+  Un único sistema para los tres envíos:
+  - «Enviar mi diseño» (`src/send-design.tsx`);
+  - «¿Prefieres que te lo diseñemos nosotros?» al final de «Diseña tu prenda» (`src/design-request.tsx`):
+    sin precio, hasta 6 imágenes o PDF de 15 MB, enlaces, cantidad, fecha y contacto; campo trampa y
+    envío demasiado rápido como antispam;
+  - «Cuéntanos tu proyecto» (`src/forms-entry.ts` → `assets/br-formularios.js`): hasta 3 archivos de 15 MB.
+  Al volver, la página muestra la confirmación de cada caso; el aviso a la tienda lleva «Tipo de solicitud».
