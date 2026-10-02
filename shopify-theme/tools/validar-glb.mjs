@@ -80,12 +80,14 @@ if (dim[1] < 0.4 || dim[1] > 1.3) fail(`Alto de ${cm(dim[1])} cm: no está en me
 if (dim[2] > dim[1]) fail('Es más profundo que alto: parece Z hacia arriba (glTF usa Y)');
 
 const bb = getBounds(bodyNode);
-const largo = (bb.max[1] - bb.min[1]) * 100;
+const br = scene.getExtras()?.br; // marcas de tools/preparar-prenda.mjs (HPS en el origen)
+const largo = br ? -br.bajoY * 100 : (bb.max[1] - bb.min[1]) * 100;
 const worldVerts = worldPositions(bodyNode);
 const chestY = bb.max[1] - (bb.max[1] - bb.min[1]) * 0.33;
 const halfHull = halfHullPerimeterAt(worldVerts, chestY, 0.015) * 100;
 const tol = (a, b) => Math.abs(a - b) / b;
-if (base) {
+if (base && br) ok(`Preparado con preparar-prenda.mjs: largo HPS→bajo ${largo.toFixed(1)} cm, pecho y bajo calibrados con la tabla (talla ${br.tallaBase})`);
+else if (base) {
   const line = `largo ${largo.toFixed(1)} cm (talla ${tallaBase}: ${base.largo}), pecho plano ≈ ${halfHull.toFixed(1)} cm (talla ${tallaBase}: ${base.pecho})`;
   tol(largo, base.largo) <= 0.08 && tol(halfHull, base.pecho) <= 0.1 ? ok(`Medidas: ${line}`) : fail(`Medidas fuera de tolerancia (8 % largo, 10 % pecho): ${line}`);
 }
@@ -104,10 +106,18 @@ if (base) {
     }
   }
   if (nrm.length === worldVerts.length) {
-    const c = [(bb.min[0] + bb.max[0]) / 2, 0, (bb.min[2] + bb.max[2]) / 2];
+    // Solo la capa más exterior (las mallas con grosor tienen la interior mirando hacia dentro):
+    // en cada celda del delantero, el vértice con mayor z
+    const cz = (bb.min[2] + bb.max[2]) / 2;
+    const cells = new Map();
+    worldVerts.forEach((v, i) => {
+      if (v[2] < cz) return;
+      const k = `${Math.round(v[0] / 0.02)},${Math.round(v[1] / 0.02)}`;
+      if (!cells.has(k) || worldVerts[cells.get(k)][2] < v[2]) cells.set(k, i);
+    });
     let out = 0;
-    worldVerts.forEach((v, i) => (out += (v[0] - c[0]) * nrm[i][0] + (v[2] - c[2]) * nrm[i][2] > 0 ? 1 : 0));
-    const r = out / nrm.length;
+    for (const i of cells.values()) out += nrm[i][2] > 0 ? 1 : 0;
+    const r = out / cells.size;
     r >= 0.6 ? ok(`Normales del cuerpo hacia fuera (${(r * 100).toFixed(0)} %)`) : fail(`Normales del cuerpo hacia dentro (${(r * 100).toFixed(0)} % hacia fuera): dales la vuelta en el programa 3D`);
   }
 }
@@ -186,7 +196,10 @@ const morphNames = new Set();
 for (const m of root.listMeshes()) for (const n of m.getExtras()?.targetNames ?? []) morphNames.add(String(n).toUpperCase());
 const tallas = Object.keys(medidas);
 const conMorph = tallas.filter((t) => morphNames.has(t));
-conMorph.length
+const zonas = nodes.some((n) => n.getMesh().listPrimitives().some((p) => p.getAttribute('_BR_ZONA')));
+zonas
+  ? ok('Tallas por zonas (largo, pecho, bajo y manga) con los pesos _BR_ZONA')
+  : conMorph.length
   ? ok(`Tallas por morph targets: ${conMorph.join(', ')}${conMorph.length < tallas.length ? ` (faltan ${tallas.filter((t) => !morphNames.has(t)).join(', ')})` : ''}`)
   : warn(`Sin morph targets por talla: el estudio escalará desde la talla ${tallaBase} (ancho por pecho, alto por largo)`);
 const ext = root.listExtensionsUsed().map((e) => e.extensionName);

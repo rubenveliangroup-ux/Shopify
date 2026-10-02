@@ -1,37 +1,35 @@
 'use client';
 
 import { useLoader, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { DecalGeometry } from 'three/examples/jsm/geometries/DecalGeometry.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { CM_PER_UNIT, EDITOR_SIZE, PANEL, type Side } from './config';
+import { EDITOR_SIZE, PANEL, type Side } from './config';
+import { applyTint, fabricMaterial, NECK_Y, PANEL_Y, UNITS_PER_METER } from './garment-material';
+
+export { NECK_Y, PANEL_Y } from './garment-material';
 
 /**
- * Sudadera desde un GLB profesional (ver shopify-theme/MODELO-3D.md).
+ * Sudadera desde el GLB preparado (shopify-theme/MODELO-3D.md, tools/preparar-prenda.mjs).
  *
- * Unidades: la escena usa 1 u = CM_PER_UNIT cm, igual que el modelo procedural, así que el lienzo
- * de edición (PANEL.size u = 74,7 cm) cae con su tamaño real sobre la prenda y la conversión
- * px→cm (CM_PER_PX) no cambia. Los bordados se calculan en coordenadas de mundo después de
- * aplicar la talla: un logo de 10 cm mide 10 cm en cualquier talla.
+ * Unidades: la escena usa 1 u = CM_PER_UNIT cm, así que el lienzo de edición (PANEL.size u = 74,7 cm)
+ * cae con su tamaño real sobre la prenda y la conversión px→cm (CM_PER_PX) no cambia. Los bordados
+ * se proyectan en coordenadas de mundo después de aplicar la talla: 10 cm miden 10 cm en todas.
  */
 
 export type SizeRow = { talla: string; largo: number; pecho: number; bajo: number; manga: number };
-export type ModelInfo = { sizesByMorph: boolean; baseSize: string };
+export type ModelInfo = { baseSize: string; sizesByZone: boolean };
+export type DesignLayers = { map: THREE.Texture; normalMap: THREE.Texture; shadowMap: THREE.Texture };
 
-/** Altura del cuello (punto alto del hombro) y centro del lienzo, en unidades de escena. */
-export const NECK_Y = 0.79;
-export const PANEL_Y = PANEL.centerY + 0.05;
-const UNITS_PER_METER = 100 / CM_PER_UNIT;
-/** Decodificadores que solo se descargan si el GLB los usa (Meshopt va incluido en el JS). */
+/** Marcas que escribe preparar-prenda.mjs en extras.br (metros, origen en el punto alto del hombro). */
+type Landmarks = { tallaBase: string; bajoY: number; canaleArribaY: number; hombroY: number };
+
+/** Decodificador Draco (solo se descarga si el GLB lo usa; Meshopt va incluido en el JS). */
 const DRACO_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
-const BASIS_PATH = `https://cdn.jsdelivr.net/npm/three@0.${THREE.REVISION}.0/examples/jsm/libs/basis/`;
-/** Mallas que no se tiñen (herretes, etiquetas). */
-const NO_TINT = /herrete|aglet|etiqueta|label|no_?tint|sin_?tinte/i;
 const LAYER_SILHOUETTE = 1;
 const TO_SRGB = Uint8Array.from({ length: 256 }, (_, i) => {
   const c = i / 255;
@@ -41,17 +39,14 @@ const TO_SRGB = Uint8Array.from({ length: 256 }, (_, i) => {
 type Props = {
   url: string;
   color: string;
-  front: THREE.Texture;
-  back: THREE.Texture;
-  frontNormal: THREE.Texture;
-  backNormal: THREE.Texture;
+  design: Record<Side, DesignLayers>;
   size?: string;
   sizes?: SizeRow[];
   onReady?: (info: ModelInfo) => void;
   onSilhouettes?: (s: Record<Side, string> | null) => void;
 };
 
-export function GarmentGLB({ url, color, front, back, frontNormal, backNormal, size, sizes, onReady, onSilhouettes }: Props) {
+export function GarmentGLB({ url, color, design, size, sizes, onReady, onSilhouettes }: Props) {
   const gl = useThree((s) => s.gl);
   const scene3 = useThree((s) => s.scene);
   const invalidate = useThree((s) => s.invalidate);
@@ -59,104 +54,178 @@ export function GarmentGLB({ url, color, front, back, frontNormal, backNormal, s
     const l = loader as GLTFLoader;
     l.setMeshoptDecoder(MeshoptDecoder);
     l.setDRACOLoader(new DRACOLoader().setDecoderPath(DRACO_PATH));
-    l.setKTX2Loader(new KTX2Loader().setTranscoderPath(BASIS_PATH).detectSupport(gl));
   }) as GLTF;
 
   const model = useMemo(() => prepareModel(gltf), [gltf]);
   const base = sizes?.find((r) => r.talla === model.baseSize);
   const target = sizes?.find((r) => r.talla === size) ?? base;
 
-  // Iluminación de estudio (HDRI generado en el navegador: no descarga nada)
+  // HDRI de estudio suave (generado en el navegador: no descarga nada)
   useEffect(() => {
     const pmrem = new THREE.PMREMGenerator(gl);
     const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     const prev = scene3.environment;
     scene3.environment = env;
+    invalidate();
     return () => {
       scene3.environment = prev;
       env.dispose();
       pmrem.dispose();
     };
-  }, [gl, scene3]);
+  }, [gl, scene3, invalidate]);
 
-  // Teñido por multiplicación: color × mapa base neutro del modelo (conserva sombras y pliegues)
+  // Teñido por multiplicación sobre el mapa base neutro (conserva grano, sombras y pliegues)
   useEffect(() => {
-    for (const m of model.tintable) m.color.set(color);
+    applyTint(model.material, color);
     invalidate();
   }, [color, model, invalidate]);
 
-  // Talla: morph targets con el nombre de la talla o, si no hay, escala desde la talla base
-  const scale = useMemo<[number, number, number]>(() => {
-    if (model.morphMeshes.length || !base || !target) return [1, 1, 1];
-    const sx = target.pecho / base.pecho;
-    return [sx, target.largo / base.largo, sx];
-  }, [model, base, target]);
+  // Talla: escalado no uniforme por zonas (largo, pecho, bajo y manga) desde la talla base
   useEffect(() => {
-    const key = size ?? model.baseSize;
-    for (const mesh of model.morphMeshes) {
-      const dict = mesh.morphTargetDictionary!;
-      const infl = mesh.morphTargetInfluences!;
-      for (const [name, i] of Object.entries(dict)) infl[i] = name.toUpperCase() === key.toUpperCase() ? 1 : 0;
-    }
-  }, [size, model]);
-
-  // Bordados proyectados en coordenadas de mundo (no heredan la escala de talla)
-  const anchor = useRef<THREE.Group>(null);
-  const decals = useMemo(() => ({ delante: new THREE.Mesh(), detras: new THREE.Mesh() }), []);
-  const decalMats = useMemo(
-    () => ({
-      delante: embroideryMaterial(front, frontNormal),
-      detras: embroideryMaterial(back, backNormal)
-    }),
-    [front, back, frontNormal, backNormal]
-  );
-  useEffect(() => {
-    decals.delante.material = decalMats.delante;
-    decals.detras.material = decalMats.detras;
-  }, [decals, decalMats]);
-
-  useEffect(() => {
-    if (!anchor.current) return;
-    anchor.current.updateWorldMatrix(true, true);
-    const target = bakedMesh(model.body);
-    const geo = projectDesigns(target);
-    for (const s of ['delante', 'detras'] as const) {
-      decals[s].geometry.dispose();
-      decals[s].geometry = geo[s];
-    }
-    if (target !== model.body) target.geometry.dispose();
+    if (base && target) applySize(model, base, target);
     invalidate();
-  }, [model, scale, size, decals, invalidate]);
+  }, [model, base, target, invalidate]);
+
+  // Bordados: diseño + relieve + sombra de contacto, proyectados delante y detrás
+  const decals = useMemo(() => {
+    const make = (layers: DesignLayers) => {
+      const shadow = new THREE.Mesh(undefined, shadowMaterial(layers.shadowMap));
+      const thread = new THREE.Mesh(undefined, embroideryMaterial(layers.map, layers.normalMap));
+      shadow.renderOrder = 1;
+      thread.renderOrder = 2;
+      return { shadow, thread };
+    };
+    return { delante: make(design.delante), detras: make(design.detras) };
+  }, [design]);
+  useEffect(() => {
+    model.mesh.updateWorldMatrix(true, false);
+    const geo = projectDesigns(model.mesh);
+    for (const s of ['delante', 'detras'] as const) {
+      decals[s].thread.geometry.dispose();
+      decals[s].thread.geometry = geo[s];
+      decals[s].shadow.geometry = geo[s];
+    }
+    invalidate();
+  }, [model, target, decals, invalidate]);
+  useEffect(
+    () => () => {
+      for (const s of ['delante', 'detras'] as const) {
+        (decals[s].thread.material as THREE.Material).dispose();
+        (decals[s].shadow.material as THREE.Material).dispose();
+      }
+    },
+    [decals]
+  );
 
   useEffect(() => {
-    onReady?.({ sizesByMorph: model.morphMeshes.length > 0, baseSize: model.baseSize });
+    onReady?.({ baseSize: model.baseSize, sizesByZone: !!model.zones });
   }, [model, onReady]);
 
-  // Silueta real de la prenda para el lienzo de edición (misma proyección que los bordados)
+  // Silueta real de la prenda (talla y color actuales) para el lienzo de edición
   useEffect(() => {
     if (!onSilhouettes) return;
-    const t = setTimeout(() => onSilhouettes(renderSilhouettes(gl, scene3)), 120);
+    const t = setTimeout(() => onSilhouettes(renderSilhouettes(gl, scene3)), 150);
     return () => clearTimeout(t);
-  }, [gl, scene3, color, scale, size, model, onSilhouettes]);
+  }, [gl, scene3, color, target, model, onSilhouettes]);
   useEffect(() => () => onSilhouettes?.(null), [onSilhouettes]);
 
   return (
     <>
-      <group position={[0, NECK_Y, 0]}>
-        <group ref={anchor} scale={scale}>
-          <primitive object={model.root} />
-        </group>
+      <group position={[0, NECK_Y, 0]} scale={UNITS_PER_METER}>
+        <primitive object={model.root} />
       </group>
-      <primitive object={decals.delante} />
-      <primitive object={decals.detras} />
+      <primitive object={decals.delante.shadow} />
+      <primitive object={decals.delante.thread} />
+      <primitive object={decals.detras.shadow} />
+      <primitive object={decals.detras.thread} />
     </>
   );
 }
 
+// ---------------------------------------------------------------- modelo
+
+type Prepared = {
+  root: THREE.Object3D;
+  mesh: THREE.Mesh;
+  material: THREE.MeshPhysicalMaterial;
+  baseSize: string;
+  /** Posiciones de la talla base y pesos por zona (manga, canalé) para cambiar de talla. */
+  basePos: Float32Array;
+  zones: THREE.BufferAttribute | null;
+  marks: Landmarks | null;
+};
+
+/** Valida lo mínimo y prepara material y geometría. El GLB viene en metros con el HPS en el origen. */
+function prepareModel(gltf: GLTF): Prepared {
+  const root = gltf.scene.clone(true);
+  const meshes: THREE.Mesh[] = [];
+  root.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh);
+  });
+  if (meshes.length !== 1) throw new Error(`Se espera una malla y el GLB tiene ${meshes.length}: prepáralo con tools/preparar-prenda.mjs`);
+  const mesh = meshes[0];
+  const extras = (gltf.scene.userData ?? {}) as { br?: Landmarks };
+  if (!extras.br) throw new Error('El GLB no está preparado (faltan las marcas extras.br): usa tools/preparar-prenda.mjs');
+  if (!mesh.geometry.attributes.uv) throw new Error('El GLB no tiene UVs');
+  const box = new THREE.Box3().setFromObject(root);
+  const heightCm = (box.max.y - box.min.y) * 100;
+  if (heightCm < 50 || heightCm > 160) throw new Error(`Escala incorrecta: el modelo mide ${heightCm.toFixed(0)} cm de alto`);
+
+  // La geometría se clona: se deforma por talla sin tocar la caché del cargador
+  mesh.geometry = mesh.geometry.clone();
+  mesh.layers.enable(LAYER_SILHOUETTE);
+  const src = mesh.material as THREE.MeshStandardMaterial;
+  const material = fabricMaterial(src);
+  mesh.material = material;
+  const pos = mesh.geometry.attributes.position as THREE.BufferAttribute;
+  return {
+    root,
+    mesh,
+    material,
+    baseSize: (extras.br.tallaBase ?? 'M').toUpperCase(),
+    basePos: Float32Array.from(pos.array as Float32Array),
+    zones: (mesh.geometry.attributes._br_zona as THREE.BufferAttribute) ?? null,
+    marks: extras.br
+  };
+}
+
 /**
- * Proyecta los lienzos delante/detrás sobre el cuerpo (con su matriz de mundo ya actualizada).
+ * Talla por zonas: largo (alto del cuerpo bajo el hombro), pecho (ancho y fondo de toda la prenda),
+ * bajo (ancho del canalé del bajo) y manga (largo desde la costura del hombro). La capucha se queda
+ * igual de alta. Pesos por vértice en el atributo _BR_ZONA (x = manga, y = canalé).
+ */
+export function applySize(model: Pick<Prepared, 'mesh' | 'basePos' | 'zones' | 'marks'>, base: SizeRow, target: SizeRow) {
+  const pos = model.mesh.geometry.attributes.position as THREE.BufferAttribute;
+  const b = model.basePos;
+  const rL = target.largo / base.largo;
+  const rC = target.pecho / base.pecho;
+  const rB = target.bajo / base.bajo / rC;
+  const rS = target.manga / base.manga;
+  const z = model.zones;
+  const hy = model.marks?.hombroY ?? -0.07;
+  for (let i = 0; i < pos.count; i++) {
+    const x = b[i * 3];
+    const y = b[i * 3 + 1];
+    const zz = b[i * 3 + 2];
+    const sleeve = z ? z.getX(i) : 0;
+    const rib = z ? z.getY(i) : 0;
+    const yBody = y < 0 ? y * rL : y;
+    const ySleeve = y < hy ? hy * rL + (y - hy) * rS : yBody;
+    const k = rC * (1 + rib * (rB - 1));
+    pos.setXYZ(i, x * k, yBody + (ySleeve - yBody) * sleeve, zz * k);
+  }
+  pos.needsUpdate = true;
+  model.mesh.geometry.computeBoundingBox();
+  model.mesh.geometry.computeBoundingSphere();
+}
+
+// ---------------------------------------------------------------- bordado
+
+/**
+ * Proyecta los lienzos delante/detrás sobre la prenda (con su matriz de mundo ya actualizada).
  * Cada lienzo es un cuadrado de PANEL.size u centrado en (0, PANEL_Y): 1 px del editor mide
- * siempre CM_PER_PX cm sobre la prenda, sea cual sea la talla.
+ * siempre CM_PER_PX cm sobre la prenda, sea cual sea la talla. Solo recibe bordado la tela que
+ * mira hacia el lado proyectado (no el interior de la capucha ni la cara oculta de las mangas).
  */
 export function projectDesigns(target: THREE.Mesh): Record<Side, THREE.BufferGeometry> {
   const box = new THREE.Box3().setFromObject(target);
@@ -165,13 +234,40 @@ export function projectDesigns(target: THREE.Mesh): Record<Side, THREE.BufferGeo
   const w = PANEL.size;
   const frontDepth = box.max.z + margin - zMid;
   const backDepth = zMid - (box.min.z - margin);
+  const front = facing(target, 1);
+  const back = facing(target, -1);
   const geo = {
-    delante: new DecalGeometry(target, new THREE.Vector3(0, PANEL_Y, zMid + frontDepth / 2), new THREE.Euler(0, 0, 0), new THREE.Vector3(w, w, frontDepth)),
-    detras: new DecalGeometry(target, new THREE.Vector3(0, PANEL_Y, zMid - backDepth / 2), new THREE.Euler(0, Math.PI, 0), new THREE.Vector3(w, w, backDepth))
+    delante: new DecalGeometry(front, new THREE.Vector3(0, PANEL_Y, zMid + frontDepth / 2), new THREE.Euler(0, 0, 0), new THREE.Vector3(w, w, frontDepth)),
+    detras: new DecalGeometry(back, new THREE.Vector3(0, PANEL_Y, zMid - backDepth / 2), new THREE.Euler(0, Math.PI, 0), new THREE.Vector3(w, w, backDepth))
   };
-  lift(geo.delante, 0.002); // ~1 mm hacia fuera: la prenda no tapa el bordado
-  lift(geo.detras, -0.002);
+  front.geometry.dispose();
+  back.geometry.dispose();
+  lift(geo.delante, 0.003); // ~1 mm hacia fuera: la prenda no tapa el bordado
+  lift(geo.detras, -0.003);
   return geo;
+}
+
+/** Copia de la malla (en coordenadas de mundo) con solo los triángulos que miran hacia ±Z. */
+function facing(mesh: THREE.Mesh, dir: 1 | -1): THREE.Mesh {
+  const g = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
+  g.applyMatrix4(mesh.matrixWorld);
+  const p = g.attributes.position as THREE.BufferAttribute;
+  const keep: number[] = [];
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  for (let i = 0; i < p.count; i += 3) {
+    a.fromBufferAttribute(p, i);
+    b.fromBufferAttribute(p, i + 1);
+    c.fromBufferAttribute(p, i + 2);
+    const n = b.sub(a).cross(c.sub(a)).normalize();
+    if (n.z * dir > 0.15) for (let k = 0; k < 9; k++) keep.push((p.array as Float32Array)[i * 3 + k]);
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.Float32BufferAttribute(keep, 3));
+  out.computeVertexNormals();
+  g.dispose();
+  return new THREE.Mesh(out);
 }
 
 /** Desplaza el bordado hacia el lado desde el que se proyecta (no depende de las normales del GLB). */
@@ -181,104 +277,38 @@ function lift(g: THREE.BufferGeometry, dz: number) {
   p.needsUpdate = true;
 }
 
+/** Hilo: algo más satinado que la felpa, con el relieve de las puntadas, sin perder saturación. */
 function embroideryMaterial(map: THREE.Texture, normalMap: THREE.Texture) {
-  return new THREE.MeshStandardMaterial({
+  return new THREE.MeshPhysicalMaterial({
     map,
     normalMap,
     normalScale: new THREE.Vector2(1.2, 1.2),
     transparent: true,
-    roughness: 0.5,
+    roughness: 0.6,
+    metalness: 0,
+    specularIntensity: 0.3,
+    envMapIntensity: 0.35,
     polygonOffset: true,
     polygonOffsetFactor: -4,
     polygonOffsetUnits: -4,
     depthWrite: false
-  } as THREE.MeshStandardMaterialParameters);
-}
-
-type Prepared = {
-  root: THREE.Object3D;
-  body: THREE.Mesh;
-  tintable: THREE.MeshStandardMaterial[];
-  morphMeshes: THREE.Mesh[];
-  baseSize: string;
-};
-
-/** Valida lo mínimo, pasa a unidades de escena y deja el cuello en el origen. */
-function prepareModel(gltf: GLTF): Prepared {
-  const root = gltf.scene.clone(true);
-  const meshes: THREE.Mesh[] = [];
-  root.traverse((o) => {
-    if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh);
   });
-  if (!meshes.length) throw new Error('El GLB no tiene mallas');
-  if (meshes.some((m) => !m.geometry.attributes.uv)) throw new Error('El GLB no tiene UVs: no se puede proyectar el bordado ni el tejido');
-  for (const m of meshes) if (!m.geometry.attributes.normal) m.geometry.computeVertexNormals();
-
-  root.scale.setScalar(UNITS_PER_METER);
-  root.updateWorldMatrix(true, true);
-  const all = new THREE.Box3().setFromObject(root);
-  const heightCm = ((all.max.y - all.min.y) * CM_PER_UNIT);
-  if (heightCm < 40 || heightCm > 160) throw new Error(`Escala u orientación incorrecta: el modelo mide ${heightCm.toFixed(0)} cm de alto (¿no está en metros o en Y-arriba?)`);
-
-  const body =
-    meshes.find((m) => /^(body|cuerpo|torso)/i.test(m.name)) ??
-    meshes.reduce((a, b) => (volume(a) >= volume(b) ? a : b));
-  const bodyBox = new THREE.Box3().setFromObject(body);
-  // Ancla opcional en el GLB ("ancla_cuello"); si no, lo alto del cuerpo en el centro
-  let neck = new THREE.Vector3((bodyBox.min.x + bodyBox.max.x) / 2, bodyBox.max.y, (bodyBox.min.z + bodyBox.max.z) / 2);
-  const anchorNode = root.getObjectByProperty('name', 'ancla_cuello') ?? root.getObjectByProperty('name', 'neck_anchor');
-  if (anchorNode) neck = anchorNode.getWorldPosition(new THREE.Vector3()).setZ(neck.z);
-  root.position.sub(neck);
-
-  const tintable: THREE.MeshStandardMaterial[] = [];
-  const morphMeshes: THREE.Mesh[] = [];
-  for (const m of meshes) {
-    m.castShadow = true;
-    m.layers.enable(LAYER_SILHOUETTE);
-    const mats = (Array.isArray(m.material) ? m.material : [m.material]).map((mat) => {
-      const c = (mat as THREE.MeshStandardMaterial).clone();
-      c.side = THREE.DoubleSide; // maniquí invisible: se ve el interior por el cuello y los bajos
-      c.envMapIntensity = 1;
-      if (!NO_TINT.test(m.name) && !NO_TINT.test(mat.name)) tintable.push(c);
-      return c;
-    });
-    m.material = Array.isArray(m.material) ? mats : mats[0];
-    if (m.morphTargetDictionary && Object.keys(m.morphTargetDictionary).length) morphMeshes.push(m);
-  }
-  const extras = (gltf.scene.userData ?? {}) as { tallaBase?: string };
-  return { root, body, tintable, morphMeshes, baseSize: (extras.tallaBase ?? 'M').toUpperCase() };
 }
 
-function volume(m: THREE.Mesh) {
-  const s = new THREE.Box3().setFromObject(m).getSize(new THREE.Vector3());
-  return s.x * s.y * s.z;
+/** Sombra de contacto del hilo sobre la tela. */
+function shadowMaterial(map: THREE.Texture) {
+  return new THREE.MeshBasicMaterial({
+    map,
+    transparent: true,
+    toneMapped: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+    depthWrite: false
+  });
 }
 
-/** DecalGeometry ignora los morph targets: se proyecta sobre una copia con la talla aplicada. */
-function bakedMesh(mesh: THREE.Mesh): THREE.Mesh {
-  const infl = mesh.morphTargetInfluences;
-  const morphs = mesh.geometry.morphAttributes.position;
-  if (!infl || !morphs || !infl.some((v) => v > 0)) return mesh;
-  const g = mesh.geometry.clone();
-  const pos = g.attributes.position as THREE.BufferAttribute;
-  const relative = g.morphTargetsRelative;
-  for (let t = 0; t < morphs.length; t++) {
-    const w = infl[t];
-    if (!w) continue;
-    const d = morphs[t];
-    for (let i = 0; i < pos.count; i++) {
-      for (let k = 0; k < 3; k++) {
-        const base = pos.getComponent(i, k);
-        const v = d.getComponent(i, k);
-        pos.setComponent(i, k, relative ? base + w * v : base + w * (v - base));
-      }
-    }
-  }
-  g.computeVertexNormals();
-  const out = new THREE.Mesh(g);
-  out.matrixWorld.copy(mesh.matrixWorld);
-  return out;
-}
+// ---------------------------------------------------------------- siluetas
 
 /** Vista ortográfica delante/detrás exactamente del tamaño del lienzo (PANEL), con fondo transparente. */
 function renderSilhouettes(gl: THREE.WebGLRenderer, scene: THREE.Scene): Record<Side, string> {

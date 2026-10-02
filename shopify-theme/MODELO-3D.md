@@ -1,100 +1,126 @@
-# Modelo 3D de la sudadera (GLB)
+# Modelo 3D de la sudadera
 
-El estudio "Diseña tu prenda" ya está preparado para cargar un modelo 3D profesional. Mientras no
-haya uno válido, usa la sudadera 3D básica de siempre. Si el GLB falla (no carga, no tiene UVs,
-escala imposible…), vuelve sola al modelo básico y deja el motivo en la consola del navegador.
+El estudio "Diseña tu prenda" muestra la sudadera real en 3D a partir de un GLB preparado (por ahora, el generado con Meshy). No usa geometría básica ni modelos paramétricos. Si el 3D no es viable, pasa solo a la **vista ligera**: fotos de la misma prenda.
 
-## Qué hace el estudio con el GLB
+## Archivos
 
-- **Teñido por multiplicación**: color elegido × textura base del modelo. Se conservan sombras, pliegues y felpa.
-- **Iluminación de estudio** (HDRI generado en el navegador, sin descargas) y tejido PBR del propio modelo.
-- **Bordado proyectado** delante y detrás sobre la malla del cuerpo, con relieve de puntada (normal map generado del diseño).
-- **Tallas XS–XXL**: con morph targets llamados como la talla; si no tiene, escala la talla base (ancho por pecho, alto por largo).
-- **Medidas reales**: 1 px del editor = 0,1245 cm sobre la prenda en todas las tallas (`npm run test:3d`). Un logo de 10 cm mide 10 cm en S y en XXL.
-- **Silueta real** de la prenda (render del modelo) como fondo del lienzo de edición, en la talla elegida.
-- Giro táctil, zoom con dos dedos y capturas delante/detrás para el pedido, igual que antes.
+| Archivo | Qué es | Peso |
+|---|---|---|
+| `assets/br-sudadera.glb` | Modelo preparado y optimizado: Draco, texturas WebP de 1K, talla base M | 0,28 MB (el original de Meshy pesaba 8,68 MB) |
+| `assets/br-prenda-delante.webp`, `br-prenda-detras.webp` | Fotos de la vista ligera: render neutro en blanco con la misma luz que el visor | 21 KB cada una |
+| `assets/br-studio.js` | Estudio (interfaz, editor y calculadora), módulo ES | 504 KB |
+| `assets/br-studio-*.js` | Visor 3D (three.js). **Solo se descarga al abrir el estudio y después de cargar la página** | 906 KB |
 
-## Ficha para encargarlo o comprarlo
+## Cómo se preparó el GLB de Meshy
 
-Pásala tal cual al modelador o úsala para revisar un modelo antes de comprarlo.
+`node shopify-theme/tools/preparar-prenda.mjs original.glb preparado.glb` hace lo siguiente:
 
-**Prenda**: sudadera con capucha oversize, corte cuadrado y algo corto (boxy cropped):
-- hombro caído y manga ancha y larga;
-- capucha grande con costura central;
-- bolsillo canguro;
-- canalé en bajo y puños, con el bajo ligeramente recogido.
+1. **Escala.**
+   - Calibra el largo con la tabla de medidas: 64 cm en la talla M, medidos desde el punto alto del hombro junto a la capucha (HPS) hasta el bajo. Meshy lo entrega en una escala arbitraria (1,9 "m" de alto).
+   - Calibra el ancho de pecho en la sisa: 68,6 → 65 cm (×0,947 en ancho y fondo).
+2. **Bajo:** estrecha el canalé del bajo de 46,4 a 38 cm (bajo relajado de la tabla). Encima queda la tela abullonada, como en las fotos.
+3. **Material de algodón mate:**
+   - quita el `metallic=1` y el mapa de metal/rugosidad;
+   - deja una rugosidad fija de 0,93.
+4. **Color base neutro.** El de Meshy es gris oscuro con motas claras y parches de luz horneada. Se sustituye por un mapa blanco roto (luminancia media del 93 %):
+   - sin motas ni parches;
+   - conserva solo el grano fino de la tela, con una variación máxima de ±6 %.
 
-Sin estampados, logos ni etiquetas visibles. Modelo hueco tipo maniquí invisible (ghost mannequin): sin cuerpo ni maniquí, con el interior visible por el cuello y el bajo.
+   Sobre él se tiñe por multiplicación.
+5. **Normal map:** se suaviza (quita el ruido de alta frecuencia de Meshy) y se reduce al 55 %. Los pliegues vienen sobre todo de la geometría.
+6. **Zonas por vértice** (`_BR_ZONA`): pesos de manga y de canalé del bajo, para cambiar de talla por zonas.
+7. **Origen y orientación:** el HPS queda en el origen, con Y hacia arriba y el delantero hacia +Z.
 
-**Medidas de la talla base M** (prenda en plano, cm). Si el modelo trae tallas (opcional, recomendado), serán *morph targets* con estos nombres:
+Después se optimiza con `npm run glb:optimizar` y se generan las fotos ligeras con `node shopify-theme/tools/render-vistas.mjs`.
 
-| Talla | Largo | Pecho | Bajo relajado | Manga |
-|---|---|---|---|---|
-| XS | 58 | 61 | 34 | 55 |
-| S | 61 | 63 | 36 | 57 |
-| **M** | **64** | **65** | **38** | **59** |
-| L | 67 | 67 | 40 | 61 |
-| XL | 70 | 70 | 42 | 63 |
-| XXL | 73 | 73 | 44 | 65 |
+**Guarda el GLB original de Meshy.** Si cambias las medidas de la tabla, hay que volver a pasar estos tres pasos.
 
-**Técnico**
+## Qué replica el modelo y qué se ha aproximado
 
-- **Formato y orientación:**
-  - glTF 2.0 binario (`.glb`);
-  - **metros**, **Y hacia arriba**, delantero mirando a **+Z**;
-  - sin animación ni esqueleto.
-- **Mallas separadas con nombre:**
-  - obligatorias: `Cuerpo`, `Capucha`, `Bolsillo`;
-  - recomendadas: `Manga_izq`, `Manga_der`, `Punos`, `Bajo`, `Cordones`;
-  - opcional: un nodo vacío `ancla_cuello` en el punto alto del hombro, en el centro.
-- **Malla:** 30.000–120.000 triángulos con caída y pliegues reales y normales hacia fuera.
-- **UVs** desplegados en 0–1, **sin solapes** (tampoco simétricos superpuestos).
-- **Material** PBR metal/rugosidad:
-  - **color base blanco o gris claro neutro** con la oclusión horneada (si es gris oscuro o de color, el teñido falla);
-  - **normal map** de felpa y canalé;
-  - rugosidad ≈ 0,85–0,95;
-  - metal 0.
-- **Texturas** de 2048 px como máximo (las reduce el script).
-- **Peso** final menor de 5 MB tras optimizar.
+**Lo trae el modelo:**
+- hombro caído;
+- manga ancha y abullonada con puño de canalé ajustado;
+- capucha grande con costura central en la espalda;
+- bolsillo canguro amplio;
+- bajo de canalé con la tela abullonada encima.
 
-**Dónde conseguirlo**
+**Lo he aproximado:**
+- **Bajo recogido:** el modelo lo traía ya, pero más ancho que la tabla (46 cm). Lo he estrechado a 38 cm con una transición de 4 cm.
+- **Efecto lavado:** la textura no lo trae. Lo añade el material: variación suave de tono de unos ±6 %, en manchas de unos 10 cm y vetas finas. Se calcula en el espacio de la prenda, así que no se ven las costuras de las UV.
+- **Felpa mate:** brillo aterciopelado (*sheen*) en lugar de reflejos. Es algo más visible en colores oscuros, para que el negro no pierda los pliegues.
 
-1. **Encargo** a un modelador de ropa en CLO3D o Marvelous Designer a partir de vuestro patrón o de una prenda real. Es la opción más fiel: la caída es simulada y puede entregar las tallas como morph targets. Pide UVs sin solapes y la exportación a GLB con esta ficha.
-2. **Compra** de un modelo de *oversized hoodie* en CGTrader, TurboSquid o Sketchfab:
-   - con **licencia comercial**;
-   - con UVs y texturas PBR;
-   - sin logos.
+**Limitación:** la espalda la inventó Meshy (no viene de una foto). Por eso hay alguna arruga poco natural en la zona baja de la espalda.
 
-   Pásale el validador *antes* de usarlo. Si el color base es oscuro, hay que aclararlo.
-3. Los generadores automáticos de imagen a 3D **no sirven**: dan mallas sin UVs limpias ni medidas reales.
+## Tallas
 
-## Flujo para ponerlo en la tienda
+El modelo es la talla M. Al elegir otra, se deforma por zonas:
 
-```bash
-# 1. Revisar (sale con error si falla algo obligatorio)
-npm run glb:validar -- sudadera.glb
+| Zona | Cómo cambia |
+|---|---|
+| Largo | Todo lo que está por debajo del hombro × largo/64. La capucha no cambia de alto. |
+| Pecho | Ancho y fondo de toda la prenda × pecho/65 |
+| Bajo | El canalé, además, × (bajo/38)/(pecho/65) |
+| Manga | Desde la costura del hombro × manga/59 |
 
-# 2. Optimizar: limpia, texturas a 2K WebP, geometría Draco; informa del peso antes y después
-npm run glb:optimizar -- sudadera.glb sudadera-web.glb
-#    --meshopt  geometría Meshopt (el decodificador va dentro de br-studio.js, no descarga nada)
-#    --ktx2     texturas KTX2 (requiere instalar KTX-Software, comando "toktx")
-#    --max 1024 si sigue pesando más de 5 MB
+**Cuánto afecta a la forma:**
+- De XS a XXL la prenda crece un 26 % de largo y un 20 % de ancho. Respecto a la M: −9 %/−6 % en XS y +14 %/+12 % en XXL.
+- Las proporciones entre zonas cambian poco:
+  - el bajo respecto al pecho pasa de 0,56 (XS) a 0,60 (XXL);
+  - la manga respecto al largo pasa de 0,95 a 0,89.
+- **En la práctica, la forma es la misma y la prenda se ve más grande o más pequeña.** El bordado no cambia de tamaño.
+- Es un escalado aproximado, no un patronaje por talla. Meshy funde las mangas con los costados, así que la separación entre manga y cuerpo es geométrica y tiene una transición de 4 cm.
 
-# 3. Revisar otra vez el optimizado
-npm run glb:validar -- sudadera-web.glb
-```
+## Medidas reales del bordado (px → cm)
 
-4. En Shopify, **Contenido > Archivos > Subir** `sudadera-web.glb` y copia su URL.
-5. Abre **Tienda online > Temas > Personalizar** y ve a la página "Diseña tu prenda". En la sección **Estudio de diseño BR > Modelo 3D**, pega la URL en *URL del modelo 3D (.glb)* y guarda.
-   - Si el campo se deja vacío, se usa el modelo 3D del producto personalizable, si tiene uno. Es mejor la opción de Archivos: Shopify puede tratar las imágenes 3D de producto.
-6. Abre la página y comprueba que aparece el selector de tallas sobre el visor: eso indica que el GLB ha cargado. Si no aparece, la consola del navegador dice por qué.
+`npm run test:3d` proyecta un diseño de 20 × 20 cm sobre la sudadera real en las 6 tallas, delante y detrás:
 
-## Limitaciones
+- **Vista de frente:** 20,00 × 20,00 cm en todas las tallas (diferencia < 0,5 mm). 1 px del editor = 0,1245 cm.
+- **Siguiendo la curva del pecho:** entre 20,11 y 20,63 cm de ancho, entre un 0,5 y un 3 % más. Es lo que se estira el diseño sobre la tela curva, igual que en la prenda real en el bastidor.
 
-- **Dónde va el bordado:** solo sobre la malla `Cuerpo` (delante y espalda), no sobre mangas ni capucha. En la espalda, la capucha tapa la parte alta del diseño, igual que en la prenda real.
-- **Tallas sin morph targets:** el escalado es proporcional (pecho y largo) y no cambia la manga por separado. Con morph targets cada talla es exacta.
-- **Proyección:** se hace de frente. En los costados muy curvos el diseño se estira un poco, como un bordado real que llega al costado.
-- **Decodificadores:** un GLB con Draco descarga una vez el decodificador (unos 300 KB, de gstatic.com) y uno con KTX2 el transcodificador Basis (jsdelivr). Con `--meshopt` y WebP no se descarga nada extra.
-- **Peso del JS:** `br-studio.js` pasa de 1,36 MB a 1,51 MB por el cargador GLB.
-- **Realismo:** depende del modelo. El estudio no inventa pliegues ni tejido; si el modelo no los trae, no aparecen.
-- **Validación:** se ha probado con un modelo de prueba (un tubo con UVs, no apto para la tienda) en una tienda simulada. El primer GLB real hay que revisarlo en la vista previa del tema.
+## Rendimiento
+
+**Carga**
+- three.js va en un chunk aparte que se pide solo en "Diseña tu prenda", cuando la página ha terminado de cargar. Mientras tanto se ve "Cargando vista 3D…".
+- Peso total del 3D: 906 KB de JS + 0,28 MB de modelo + unos 300 KB del decodificador Draco (gstatic.com, en caché).
+
+**Ajustes en móvil**
+- Resolución máxima de 1,5× (2× en escritorio).
+- Sin antialias y sombra de contacto a 256 px, calculada una sola vez por talla.
+- Sin amortiguación del giro.
+- Deja de dibujar cuando no se toca: solo gira al principio.
+
+**Automático**
+- Si los FPS bajan de 22, baja la resolución a 1×.
+- Si siguen bajos, pasa a la vista ligera.
+- También pasa a la vista ligera si se pierde el contexto WebGL.
+
+## Vista ligera (sin 3D)
+
+**Cuándo se usa:**
+- no hay WebGL;
+- el dispositivo tiene 2 GB de memoria o menos, o 2 núcleos;
+- está activado el ahorro de datos;
+- el GLB no carga;
+- el 3D va a tirones.
+
+**Qué muestra:**
+- fotos delante y detrás de la misma sudadera, teñidas del color elegido;
+- el diseño encima, a su tamaño real, con relieve de puntadas y una ligera sombra.
+
+**Qué se pierde frente al 3D:**
+- no se puede girar ni ver los laterales, solo delante y detrás;
+- no hay cambio de forma por talla (siempre la M);
+- el diseño no se curva con los pliegues: queda plano sobre la foto, aunque con sombra y relieve;
+- la luz es fija.
+
+Para probarla: añade `?modo3d=ligero` a la URL (o `?modo3d=3d` para forzar el 3D).
+
+## Cambiar el modelo
+
+1. `node shopify-theme/tools/preparar-prenda.mjs original.glb preparado.glb`
+   - Requisitos: una sola malla con UVs, Y hacia arriba, delantero +Z y capucha.
+2. `npm run glb:optimizar -- preparado.glb shopify-theme/assets/br-sudadera.glb`
+3. `node shopify-theme/tools/render-vistas.mjs shopify-theme/assets/br-sudadera.glb shopify-theme/assets`
+4. `npm run test:3d`
+5. Sube `br-sudadera.glb` y las dos `br-prenda-*.webp` al tema (Editar código > Assets).
+   - También puedes subir el GLB en Contenido > Archivos y pegar su URL en el ajuste "URL de otro modelo 3D" de la sección.

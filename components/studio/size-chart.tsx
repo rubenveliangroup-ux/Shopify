@@ -22,10 +22,10 @@ export function SizeChart({ data, highlight }: { data: SizeChartData; highlight?
             <thead>
               <tr className="text-[11px] uppercase tracking-wide text-tinta-500">
                 <th className="px-2 py-2">Talla</th>
-                <th className="px-2 py-2">Largo</th>
-                <th className="px-2 py-2">Pecho</th>
+                <th className="px-2 py-2">Largo total</th>
+                <th className="px-2 py-2">Ancho pecho</th>
                 <th className="px-2 py-2">Bajo relajado</th>
-                <th className="px-2 py-2">Manga</th>
+                <th className="px-2 py-2">Largo manga</th>
               </tr>
             </thead>
             <tbody>
@@ -43,9 +43,16 @@ export function SizeChart({ data, highlight }: { data: SizeChartData; highlight?
         </div>
         {data.nota && <p className="mt-2 text-xs text-tinta-500">{data.nota}</p>}
         {data.imagen && (
-          <a href={data.imagen} target="_blank" rel="noopener" className="relative mt-3 block overflow-hidden rounded-xl" style={{ touchAction: 'pinch-zoom' }}>
+          <a
+            href={data.imagen}
+            target="_blank"
+            rel="noopener"
+            aria-label="Ampliar el dibujo de cómo se mide"
+            className="relative mx-auto mt-3 block max-w-[280px] overflow-hidden rounded-xl bg-white"
+            style={{ touchAction: 'pinch-zoom' }}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element -- se usa también en el tema de Shopify, sin next/image */}
-            <img src={data.imagen} alt="Tabla de medidas" className="block h-auto w-full" loading="lazy" />
+            <img src={data.imagen} alt="Cómo se mide cada talla (prenda en plano)" className="block h-auto w-full" loading="lazy" width={992} height={1016} />
             <span className="absolute bottom-2 right-2 rounded-full bg-black/65 px-2.5 py-1 text-xs text-white">Toca para ampliar</span>
           </a>
         )}

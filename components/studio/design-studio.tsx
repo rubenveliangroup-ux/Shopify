@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import * as THREE from 'three';
 import { cn } from '@/lib/utils';
 import { ArrowIcon, CheckIcon } from '../icons';
 import { ColorPicker } from '../color/ColorPicker';
@@ -13,8 +12,8 @@ import { applyEmbroidery } from './embroidery';
 import { analyzeDesign, type DesignAnalysis } from './embroidery-estimate';
 import { buildEstimate, EmbroideryPanel, type EmbroideryEstimate } from './embroidery-panel';
 import type { EmbroideryPricing } from './embroidery-pricing';
-import { Garment3D, type Garment3DHandle } from './garment-3d';
 import type { ModelInfo, SizeRow } from './garment-glb';
+import { GarmentPreview, loadImage, tintGarment, type PreviewHandle, type PreviewMode } from './garment-preview';
 import { OwnDesignForm, type OwnDesignData } from './own-design-form';
 import { SendDesign } from './send-design';
 
@@ -58,20 +57,21 @@ type StudioProps = {
   stockColors?: NamedColor[];
   /** URL del JSON con la carta de hilos (assets/br-hilos.json en el tema). */
   threadPaletteUrl?: string;
-  /** GLB de la prenda y medidas por talla (MODELO-3D.md). Sin url, modelo 3D básico. */
-  model?: { url?: string; sizes?: SizeRow[] };
+  /**
+   * GLB de la prenda, fotos para la vista ligera (render neutro delante/detrás) y medidas por talla
+   * (MODELO-3D.md). Sin GLB o si el 3D no es viable, se usa la vista ligera.
+   */
+  model?: { url?: string; liteImages?: Partial<Record<Side, string>>; sizes?: SizeRow[] };
 };
 
 type Mode = 'disenar' | 'enviar';
 
-function useSideTexture() {
+/** Lienzo con el diseño de un lado, a la resolución que se proyecta sobre la prenda. */
+function useSideCanvas() {
   return useMemo(() => {
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = TEXTURE_SIZE;
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.anisotropy = 4;
-    return { canvas, texture };
+    return canvas;
   }, []);
 }
 
@@ -92,7 +92,7 @@ export function DesignStudio({
 }: StudioProps = {}) {
   const garmentList = garmentIds ? garments.filter((g) => garmentIds.includes(g.id)) : garments;
   const editors = { delante: useRef<EditorHandle>(null), detras: useRef<EditorHandle>(null) };
-  const viewer = useRef<Garment3DHandle>(null);
+  const viewer = useRef<PreviewHandle>(null);
 
   const [mode, setMode] = useState<Mode>('disenar');
   const [side, setSide] = useState<Side>('delante');
@@ -114,11 +114,29 @@ export function DesignStudio({
   const [checkout, setCheckout] = useState<CheckoutProps | null>(null);
   const [mobileTab, setMobileTab] = useState<'diseno' | 'prenda'>('diseno');
 
-  const textures = { delante: useSideTexture(), detras: useSideTexture() };
+  const canvases = { delante: useSideCanvas(), detras: useSideCanvas() };
+  const [designVersion, setDesignVersion] = useState(0);
 
   // --- Modelo 3D real (GLB): talla que se ve y siluetas para el lienzo
   const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
   const [silhouettes, setSilhouettes] = useState<Record<Side, string> | null>(null);
+  const [previewMode, setPreviewMode] = useState<PreviewMode>('cargando');
+  // Fondo del lienzo de edición sin 3D: la foto de la prenda teñida del color elegido
+  const [liteSilhouettes, setLiteSilhouettes] = useState<Record<Side, string> | null>(null);
+  useEffect(() => {
+    const imgs = model?.liteImages;
+    if (silhouettes || !imgs?.delante || !imgs.detras) return;
+    let live = true;
+    Promise.all([loadImage(imgs.delante), loadImage(imgs.detras)])
+      .then(([f, b]) => {
+        if (!live) return;
+        setLiteSilhouettes({ delante: tintGarment(f, color.hex, 600, 'lienzo').toDataURL(), detras: tintGarment(b, color.hex, 600, 'lienzo').toDataURL() });
+      })
+      .catch(() => live && setLiteSilhouettes(null));
+    return () => {
+      live = false;
+    };
+  }, [model?.liteImages, color.hex, silhouettes]);
   const viewSizes = model?.sizes ?? [];
   const [viewSize, setViewSize] = useState<string | undefined>(undefined);
   const shownSize = viewSize ?? modelInfo?.baseSize;
@@ -161,11 +179,11 @@ export function DesignStudio({
   const refresh = useCallback(
     (s: Side) => {
       const ed = editors[s].current;
-      const { canvas, texture } = textures[s];
+      const canvas = canvases[s];
       if (!ed) return;
       ed.renderTo(canvas);
       if (embroideryRef.current) applyEmbroidery(canvas);
-      texture.needsUpdate = true;
+      setDesignVersion((v) => v + 1);
       scheduleAnalysis(s);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -178,14 +196,6 @@ export function DesignStudio({
     refresh('delante');
     refresh('detras');
   }, [embroidery, refresh]);
-  useEffect(
-    () => () => {
-      textures.delante.texture.dispose();
-      textures.detras.texture.dispose();
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
-  );
 
   const onUpload = useCallback((f: File) => setUploads((u) => [...u, f].slice(-2)), []);
 
@@ -347,27 +357,29 @@ export function DesignStudio({
         <div className="lg:order-2">
           <div className="sticky top-20 z-10 space-y-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pb-2">
             <div className="relative aspect-square max-h-[46vh] w-full overflow-hidden rounded-3xl ring-1 ring-tinta/10 lg:aspect-[4/3] lg:max-h-[56vh]">
-              <Garment3D
+              <GarmentPreview
                 ref={viewer}
-                type={type}
                 color={color.hex}
                 view={side}
-                front={textures.delante.texture}
-                back={textures.detras.texture}
+                front={canvases.delante}
+                back={canvases.detras}
+                version={designVersion}
                 modelUrl={model?.url}
+                liteImages={model?.liteImages}
                 size={shownSize}
                 sizes={viewSizes}
                 onModelReady={setModelInfo}
                 onSilhouettes={setSilhouettes}
+                onModeChange={setPreviewMode}
               />
               {modelInfo && viewSizes.length > 0 && (
-                <div className="absolute left-3 top-12 flex gap-0.5 rounded-full bg-lino-100/90 p-1 text-xs font-medium" role="group" aria-label="Talla que se muestra">
+                <div className="absolute left-3 top-14 flex gap-0.5 rounded-full bg-lino-100/90 p-1 text-xs font-medium sm:top-12" role="group" aria-label="Talla que se muestra">
                   {viewSizes.map((r) => (
                     <button
                       key={r.talla}
                       onClick={() => setViewSize(r.talla)}
                       aria-pressed={shownSize === r.talla}
-                      className={cn('min-w-[2rem] rounded-full px-1.5 py-1', shownSize === r.talla && 'bg-tinta text-lino')}
+                      className={cn('min-h-[2.25rem] min-w-[2.25rem] rounded-full px-1.5 sm:min-h-0 sm:min-w-[2rem] sm:py-1', shownSize === r.talla && 'bg-tinta text-lino')}
                     >
                       {r.talla}
                     </button>
@@ -376,13 +388,13 @@ export function DesignStudio({
               )}
               <div className="absolute left-3 top-3 flex gap-1 rounded-full bg-lino-100/90 p-1 text-xs font-medium">
                 {sides.map((s) => (
-                  <button key={s.id} onClick={() => setSide(s.id)} className={cn('rounded-full px-3 py-1', side === s.id && 'bg-tinta text-lino')}>
+                  <button key={s.id} onClick={() => setSide(s.id)} className={cn('min-h-[2.25rem] rounded-full px-3 sm:min-h-0 sm:py-1', side === s.id && 'bg-tinta text-lino')}>
                     Ver {s.label.toLowerCase()}
                   </button>
                 ))}
               </div>
               <p className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-lino-100/90 px-3 py-1 text-xs text-tinta-700">
-                Arrastra para girar · zoom con 2 dedos
+                {previewMode === 'ligero' ? 'Vista previa (sin 3D)' : 'Arrastra para girar · zoom con 2 dedos'}
               </p>
             </div>
             <div className="hidden space-y-4 rounded-3xl bg-lino-100 p-5 ring-1 ring-tinta/10 lg:block">
@@ -410,7 +422,7 @@ export function DesignStudio({
                   ref={editors[s.id]}
                   side={s.id}
                   garmentColor={color.hex}
-                  silhouetteUrl={silhouettes?.[s.id]}
+                  silhouetteUrl={(silhouettes ?? liteSilhouettes)?.[s.id]}
                   threads={threads}
                   onChange={s.id === 'delante' ? refreshFront : refreshBack}
                   onUpload={onUpload}

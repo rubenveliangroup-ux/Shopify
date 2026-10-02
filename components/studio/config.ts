@@ -26,3 +26,13 @@ export const CM_PER_UNIT = 45;
 export const EDITOR_SIZE = 600; // px internos del lienzo de edición
 export const TEXTURE_SIZE = 1024; // px de la textura que se proyecta en 3D
 export const CM_PER_PX = (PANEL.size * CM_PER_UNIT) / EDITOR_SIZE;
+/** Centro vertical real del lienzo sobre la prenda 3D (el cuello está en y = 0,79). */
+export const PANEL_Y = PANEL.centerY + 0.05;
+/** Encuadre de las fotos de la vista ligera: la prenda entera (capucha y puños) alrededor del lienzo. */
+export const LITE_FRAME = { size: 2.0, centerY: 0.08 };
+/** Rectángulo del lienzo dentro de una foto de la vista ligera (fracciones 0–1). */
+export const PANEL_IN_LITE = {
+  x: (LITE_FRAME.size - PANEL.size) / 2 / LITE_FRAME.size,
+  y: (LITE_FRAME.centerY + LITE_FRAME.size / 2 - (PANEL_Y + PANEL.size / 2)) / LITE_FRAME.size,
+  size: PANEL.size / LITE_FRAME.size
+};

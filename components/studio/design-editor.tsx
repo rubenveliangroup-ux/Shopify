@@ -387,6 +387,7 @@ export const DesignEditor = forwardRef<EditorHandle, Props>(function DesignEdito
       >
         {silhouetteUrl ? (
           <>
+            {/* eslint-disable-next-line @next/next/no-img-element -- imagen generada en el navegador (data URL) */}
             <img src={silhouetteUrl} alt="" aria-hidden className="pointer-events-none absolute inset-0 h-full w-full" />
             <span className="pointer-events-none absolute left-3.5 top-2 text-[15px] text-black/35">{side === 'delante' ? 'DELANTE' : 'DETRÁS'}</span>
           </>

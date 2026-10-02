@@ -3,15 +3,16 @@
 
   Para cambiar las medidas, edita `medidas` (talla,largo,pecho,bajo relajado,manga en cm,
   prenda plana; tallas separadas por «;»).
-  Para mostrar la imagen de la tabla: súbela a Assets como `br-tabla-medidas.png`
-  (o cambia `imagen`) y pon `mostrar_imagen` a true.
+  La imagen es solo el dibujo de cómo se mide (assets/br-guia-medidas.webp, recortado de la
+  tabla de medidas): las cifras van en la tabla HTML para no duplicarlas. Para quitarla, pon
+  `mostrar_imagen` a false.
 
   @param {string} [formato] - 'tabla' (por defecto, HTML) o 'json' (para el estudio 3D)
 {%- enddoc -%}
 {%- liquid
   assign medidas = 'XS,58,61,34,55;S,61,63,36,57;M,64,65,38,59;L,67,67,40,61;XL,70,70,42,63;XXL,73,73,44,65'
-  assign imagen = 'br-tabla-medidas.png'
-  assign mostrar_imagen = false
+  assign imagen = 'br-guia-medidas.webp'
+  assign mostrar_imagen = true
   assign nota = 'Medidas de la prenda en plano, en cm. Corte boxy y corto: si prefieres más holgura, elige una talla más.'
   assign filas = medidas | split: ';'
 -%}
@@ -28,7 +29,7 @@
     <div class="br-medidas__scroll" role="region" aria-label="Tabla de medidas" tabindex="0">
       <table class="br-medidas__tabla">
         <thead>
-          <tr><th scope="col">Talla</th><th scope="col">Largo</th><th scope="col">Pecho</th><th scope="col">Bajo relajado</th><th scope="col">Manga</th></tr>
+          <tr><th scope="col">Talla</th><th scope="col">Largo total</th><th scope="col">Ancho pecho</th><th scope="col">Bajo relajado</th><th scope="col">Largo manga</th></tr>
         </thead>
         <tbody>
           {%- for fila in filas -%}
@@ -40,10 +41,13 @@
     </div>
     <p class="br-medidas__nota">{{ nota }}</p>
     {%- if mostrar_imagen -%}
-      <a class="br-medidas__imagen" href="{{ imagen | asset_url }}" target="_blank" rel="noopener" aria-label="Ampliar la tabla de medidas">
-        <img src="{{ imagen | asset_url }}" alt="Tabla de medidas de BR" loading="lazy" width="1200" height="900">
-        <span>Toca para ampliar</span>
-      </a>
+      <figure class="br-medidas__figura">
+        <a class="br-medidas__imagen" href="{{ imagen | asset_url }}" target="_blank" rel="noopener" aria-label="Ampliar el dibujo de cómo se mide">
+          <img src="{{ imagen | asset_url }}" alt="Cómo se mide: largo total desde el hombro junto a la capucha hasta el bajo, ancho de pecho de axila a axila, bajo relajado y largo de manga desde la costura del hombro" loading="lazy" width="992" height="1016">
+          <span>Toca para ampliar</span>
+        </a>
+        <figcaption>Cómo medimos (prenda en plano): Total length = largo total · Chest width = ancho pecho · Bottom relaxed = bajo relajado · Sleeve length = largo manga.</figcaption>
+      </figure>
     {%- endif -%}
   </div>
   <style>
@@ -55,7 +59,9 @@
     .br-medidas__tabla tbody th { font-weight: 700; }
     .br-medidas__tabla tbody tr:last-child > * { border-bottom: 0; }
     .br-medidas__nota { margin: 0; font-size: 13px; opacity: .75; }
-    .br-medidas__imagen { display: block; position: relative; border-radius: 12px; overflow: hidden; touch-action: pinch-zoom; }
+    .br-medidas__figura { margin: 0; display: grid; gap: 6px; max-width: 360px; }
+    .br-medidas__figura figcaption { font-size: 12px; opacity: .7; }
+    .br-medidas__imagen { display: block; position: relative; border-radius: 12px; overflow: hidden; touch-action: pinch-zoom; background: #fafafa; }
     .br-medidas__imagen img { display: block; width: 100%; height: auto; }
     .br-medidas__imagen span { position: absolute; right: 8px; bottom: 8px; background: rgb(0 0 0 / .65); color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 999px; }
   </style>

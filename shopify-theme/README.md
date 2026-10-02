@@ -2,7 +2,8 @@
 
 Versión del estudio (`components/studio`) incrustada en el tema Horizon, sin servidor propio.
 
-- `src/entry.tsx` monta el estudio en `#br-studio` con la configuración que imprime la sección Liquid.
+- `src/entry.tsx` monta el estudio en `#br-studio` con la configuración que imprime la sección Liquid
+  (módulo ES: `<script type="module">`).
 - `src/add-to-cart.tsx` añade el producto personalizable al carrito con un formulario multipart a `/cart/add`:
   el diseño (`Diseño`), la captura 3D (`Vista 3D`) y la imagen original quedan como propiedades de la línea
   y se ven en el pedido de Shopify.
@@ -20,19 +21,20 @@ Versión del estudio (`components/studio`) incrustada en el tema Horizon, sin se
 - **Color de prenda**: editor de temas → «Estudio de diseño BR» → «Modo de color de prenda»
   (libre / stock) y «Colores de stock» (`Nombre #hex` por línea). En modo libre, las líneas llevan
   `Aviso: Color sujeto a confirmación de disponibilidad` y `_Color prenda (hex)`.
-- **Medidas**: fuente única `snippets/br-medidas.liquid` (variable `medidas`; imagen opcional con
-  `imagen` + `mostrar_imagen`). Se muestra en el bloque «Medidas (BR)» de la ficha de producto
+- **Medidas**: fuente única `snippets/br-medidas.liquid` (variable `medidas`; dibujo de cómo se mide
+  `assets/br-guia-medidas.webp`, recortado de la imagen de la tabla, con `mostrar_imagen`). Se muestra en el bloque «Medidas (BR)» de la ficha de producto
   (`blocks/br-medidas.liquid`, solo productos con opción «Talla») y en el selector de talla del estudio.
 - **Menú**: `snippets/br-nav-extra.liquid` añade «Diseña tu prenda» e «Impulsa tu marca» si el menú
   `main-menu` no los trae, y subraya el apartado activo. Parches mínimos sobre Horizon en
   `theme-overrides/` (originales en `original/` para comparar).
 
-## Modelo 3D (GLB)
+## Modelo 3D (GLB) y vista ligera
 
-Ver [`MODELO-3D.md`](MODELO-3D.md): ficha para encargar o comprar el modelo, `npm run glb:validar`,
-`npm run glb:optimizar`, ajuste «URL del modelo 3D (.glb)» de la sección y limitaciones. Sin GLB
-válido, el estudio usa la sudadera 3D básica. `npm run test:3d` comprueba que px→cm se mantiene
-en todas las tallas.
+Ver [`MODELO-3D.md`](MODELO-3D.md). Sudadera real de Meshy preparada con `tools/preparar-prenda.mjs`
+(escala por tabla de medidas, base neutra para teñir, zonas por talla), optimizada a 0,28 MB
+(`assets/br-sudadera.glb`) y fotos de la vista ligera (`assets/br-prenda-*.webp`, de
+`tools/render-vistas.mjs`). El visor 3D es un chunk aparte (`assets/br-studio-*.js`): al subir
+assets, sube **todos** los `br-studio*.js`. `npm run test:3d` comprueba px→cm en todas las tallas.
 
 ## Calculadora de bordado
 

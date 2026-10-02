@@ -9,7 +9,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "build:theme": "node shopify-theme/build.mjs",
-    "test:3d": "esbuild shopify-theme/tools/test-px-cm.ts --bundle --platform=node --format=esm --alias:@=. --external:react --external:@react-three/fiber --log-level=error --outfile=node_modules/.cache/test-px-cm.mjs && node node_modules/.cache/test-px-cm.mjs",
+    "test:3d": "esbuild shopify-theme/tools/test-px-cm.ts --bundle --platform=node --format=esm --alias:@=. --packages=external --log-level=error --outfile=node_modules/.cache/test-px-cm.mjs && node node_modules/.cache/test-px-cm.mjs",
     "glb:validar": "node shopify-theme/tools/validar-glb.mjs",
     "glb:optimizar": "node shopify-theme/tools/optimizar-glb.mjs"
   },
@@ -39,6 +39,7 @@
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.35",
     "meshoptimizer": "^1.3.0",
+    "playwright": "^1.56.1",
     "postcss": "^8.4.39",
     "sharp": "^0.35.5",
     "tailwindcss": "^3.4.6",
