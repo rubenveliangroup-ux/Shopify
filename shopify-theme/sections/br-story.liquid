@@ -14,7 +14,7 @@
       <div>
         {%- if s.eyebrow != blank -%}<p class="br-eyebrow">{{ s.eyebrow }}</p>{%- endif -%}
         <h2 class="br-h2">{{ s.heading }}</h2>
-        <div class="br-rte" style="margin-top: 24px;">{{ s.text }}</div>
+        <div class="br-rte" style="margin-top: 24px;">{{ s.text | replace: '<em>[', '<em class="br-ph">[' }}</div>
         {%- if s.button_label != blank -%}<div class="br-btns"><a class="br-btn br-btn--ghost" href="{{ s.button_link }}">{{ s.button_label }}</a></div>{%- endif -%}
       </div>
     </div>
@@ -30,7 +30,7 @@
     { "type": "checkbox", "id": "image_right", "label": "Imagen a la derecha (escritorio)", "default": false },
     { "type": "text", "id": "eyebrow", "label": "Antetítulo", "default": "Hecho en Pontevedra" },
     { "type": "text", "id": "heading", "label": "Título", "default": "Bordado gallego, puntada a puntada" },
-    { "type": "richtext", "id": "text", "label": "Texto", "default": "<p>BR nace en Pontevedra para llevar el bordado gallego a la ropa de todos los días. Cada pieza se borda en nuestro taller y se revisa una a una antes de salir.</p><p><span class=\"br-ph\">[Completa con vuestra historia: quién borda, desde cuándo, qué os inspira, qué materiales usáis.]</span></p>" },
+    { "type": "richtext", "id": "text", "label": "Texto", "default": "<p>BR nace en Pontevedra para llevar el bordado gallego a la ropa de todos los días. Cada pieza se borda en nuestro taller y se revisa una a una antes de salir.</p><p><em>[Completa con vuestra historia: quién borda, desde cuándo, qué os inspira, qué materiales usáis.]</em></p>" },
     { "type": "text", "id": "button_label", "label": "Botón (opcional)" },
     { "type": "url", "id": "button_link", "label": "Enlace del botón" }
   ],
