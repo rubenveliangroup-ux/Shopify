@@ -1,17 +1,105 @@
 {%- comment -%}
   BR · Hero de portada a pantalla completa: foto o vídeo, titular corto, frase y tres botones
   (el tercero, «Impulsa tu marca», con el estilo destacado de la marca).
-  La imagen/vídeo del hero se carga sin diferir (es lo primero que se ve).
+
+  Vídeo: primero se ve la imagen de respaldo (poster, sin diferir: es lo primero que se pinta) y el vídeo
+  se pide cuando la página ya ha cargado, sin bloquearla: versión ligera en móvil en vertical y la de
+  escritorio en el resto. Sin vídeo (solo la imagen) con «reducir movimiento» o «ahorro de datos», o si el
+  navegador no lo reproduce solo (iOS en bajo consumo).
+  - «Vídeo optimizado del tema»: assets/br-hero-escritorio.mp4, br-hero-movil.mp4 y sus imágenes
+    br-hero-poster.jpg / br-hero-poster-movil.jpg (npm run hero, ver shopify-theme/README.md).
+  - Si no, el vídeo subido a Shopify: su versión de 720p en escritorio y la de 480p en móvil.
 {%- endcomment -%}
 {{ 'br-landing.css' | asset_url | stylesheet_tag }}
 {%- liquid
   assign s = section.settings
   assign overlay = s.overlay | divided_by: 100.0
+
+  # Fuentes del vídeo y de la imagen de respaldo
+  assign v_escritorio = ''
+  assign v_movil = ''
+  assign poster = ''
+  assign poster_movil = ''
+  if s.media == 'video'
+    if s.video_optimizado
+      assign v_escritorio = 'br-hero-escritorio.mp4' | asset_url
+      assign v_movil = 'br-hero-movil.mp4' | asset_url
+      assign poster = 'br-hero-poster.jpg' | asset_url
+      assign poster_movil = 'br-hero-poster-movil.jpg' | asset_url
+    elsif s.video != blank
+      assign h_escritorio = 0
+      assign h_movil = 100000
+      for src in s.video.sources
+        if src.format == 'mp4'
+          if src.height > h_escritorio and src.height <= 720
+            assign h_escritorio = src.height
+            assign v_escritorio = src.url
+          endif
+          if src.height < h_movil
+            assign h_movil = src.height
+            assign v_movil = src.url
+          endif
+        endif
+      endfor
+      if v_escritorio == blank
+        assign v_escritorio = v_movil
+      endif
+      assign poster = s.video.preview_image | image_url: width: 1920
+      assign poster_movil = s.video.preview_image | image_url: width: 720, height: 1280, crop: 'center'
+    endif
+    if s.poster != blank
+      assign poster = s.poster | image_url: width: 1920
+      assign poster_movil = s.poster | image_url: width: 720, height: 1280, crop: 'center'
+    endif
+    if s.poster_movil != blank
+      assign poster_movil = s.poster_movil | image_url: width: 720, height: 1280, crop: 'center'
+    endif
+  endif
 -%}
 <section class="br br-hero" style="--br-overlay: {{ overlay }};" aria-label="{{ s.heading | strip_html | escape }}">
   <div class="br-hero__media">
-    {%- if s.video != blank and s.media == 'video' -%}
-      {{ s.video | video_tag: autoplay: true, loop: true, muted: true, controls: false, playsinline: true, preload: 'metadata', image_size: '1600x' }}
+    {%- if v_escritorio != blank -%}
+      <picture class="br-hero__poster">
+        {%- if poster_movil != blank -%}<source media="(max-width: 749px) and (orientation: portrait)" srcset="{{ poster_movil }}">{%- endif -%}
+        <img src="{{ poster }}" alt="" loading="eager" fetchpriority="high" decoding="async">
+      </picture>
+      <video
+        id="BrHeroVideo-{{ section.id }}"
+        class="br-hero__video"
+        muted
+        loop
+        playsinline
+        autoplay
+        preload="none"
+        disablepictureinpicture
+        disableremoteplayback
+        aria-hidden="true"
+        tabindex="-1"
+        data-src="{{ v_escritorio }}"
+        data-src-movil="{{ v_movil }}"
+      ></video>
+      <script>
+        (function () {
+          var v = document.getElementById('BrHeroVideo-{{ section.id }}');
+          if (!v) return;
+          var reducir = window.matchMedia('(prefers-reduced-motion: reduce)');
+          var c = navigator.connection;
+          // Movimiento reducido o ahorro de datos: solo la imagen
+          if (reducir.matches || (c && c.saveData)) return;
+          function arrancar() {
+            var movil = window.matchMedia('(max-width: 749px) and (orientation: portrait)').matches;
+            v.src = (movil && v.dataset.srcMovil) || v.dataset.src;
+            v.addEventListener('playing', function () { v.classList.add('is-playing'); }, { once: true });
+            var p = v.play();
+            if (p && p.catch) p.catch(function () {}); // no se reproduce solo: se queda la imagen
+          }
+          if (document.readyState === 'complete') arrancar();
+          else window.addEventListener('load', arrancar, { once: true });
+          if (reducir.addEventListener) reducir.addEventListener('change', function (e) {
+            if (e.matches) { v.pause(); v.classList.remove('is-playing'); }
+          });
+        })();
+      </script>
     {%- else -%}
       {%- if s.image_mobile != blank -%}
         {{ s.image_mobile | image_url: width: 1200 | image_tag: class: 'br-hero__img--mobile', loading: 'eager', fetchpriority: 'high', widths: '600, 900, 1200', sizes: '100vw', alt: s.image_mobile.alt }}
@@ -45,7 +133,10 @@
   "class": "section-br-hero",
   "settings": [
     { "type": "select", "id": "media", "label": "Fondo", "options": [{ "value": "video", "label": "Vídeo" }, { "value": "image", "label": "Imagen" }], "default": "video" },
+    { "type": "checkbox", "id": "video_optimizado", "label": "Usar el vídeo optimizado del tema", "info": "assets/br-hero-escritorio.mp4 (≈7 MB) y br-hero-movil.mp4 (≈2,5 MB), creados con «npm run hero». Si está desactivado, se usa el vídeo de abajo.", "default": false },
     { "type": "video", "id": "video", "label": "Vídeo (sin sonido, en bucle)", "info": "Si no hay vídeo se usa la imagen." },
+    { "type": "image_picker", "id": "poster", "label": "Imagen de respaldo del vídeo (opcional)", "info": "Se ve al instante mientras carga y si el vídeo no se reproduce. Si no hay, el primer fotograma." },
+    { "type": "image_picker", "id": "poster_movil", "label": "Imagen de respaldo para móvil (opcional)", "info": "Vertical 9:16. Si no hay, se recorta el centro de la anterior." },
     { "type": "image_picker", "id": "image", "label": "Imagen (escritorio)", "info": "Horizontal, mínimo 2000 px de ancho." },
     { "type": "image_picker", "id": "image_mobile", "label": "Imagen para móvil (opcional)", "info": "Vertical 4:5 o 9:16. Si no hay, se recorta la de escritorio." },
     { "type": "range", "id": "overlay", "label": "Oscurecer la imagen", "min": 0, "max": 80, "step": 5, "unit": "%", "default": 45 },

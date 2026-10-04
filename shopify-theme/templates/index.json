@@ -4,6 +4,7 @@
       "type": "br-hero",
       "settings": {
         "media": "video",
+        "video_optimizado": true,
         "video": "shopify://files/videos/br-hero-video-169.mp4",
         "overlay": 45,
         "show_logo": true,

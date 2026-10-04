@@ -41,7 +41,8 @@ assets, sube **todos** los `br-studio*.js`. `npm run test:3d` comprueba px→cm 
 Todo es editable en el editor de temas y usa `assets/br-landing.css` (mobile-first, identidad del tema).
 
 **Portada** (`templates/index.json`), en este orden:
-- `br-hero`: pantalla completa, vídeo o imagen, «Ver catálogo» / «Diseña tu prenda»; es la única imagen sin diferir;
+- `br-hero`: pantalla completa, vídeo o imagen, «Ver catálogo» / «Diseña tu prenda» / «Impulsa tu marca»; su imagen
+  de respaldo es la única sin diferir (ver «Vídeo del hero» abajo);
 - `br-featured`: colección destacada;
 - `br-steps`: cómo funciona, 4 pasos;
 - `br-story`: marca, bordado gallego, Pontevedra, con marcadores amarillos para completar;
@@ -67,6 +68,28 @@ Esa página usa `templates/page.faq.json`.
 - acordeón en móvil, columnas en escritorio.
 
 Textos base de las páginas legales: `contenido/*.html` (BORRADOR, con marcadores).
+
+### Vídeo del hero
+
+```
+npm run hero -- video.mp4 [imagen-de-respaldo.jpg]
+```
+
+Crea en `assets/` (ffmpeg de `node_modules`, sin instalar nada más):
+- `br-hero-escritorio.mp4`: H.264, 1080p como máximo, unos 7 MB, sin audio;
+- `br-hero-movil.mp4`: 720 × 1280 vertical (centro del plano, lo que se ve en un móvil en vertical), unos 2,5 MB;
+- `br-hero-poster.jpg` y `br-hero-poster-movil.jpg`: la imagen que se pase o el primer fotograma.
+
+Súbelos al tema y marca «Usar el vídeo optimizado del tema» en la sección (`video_optimizado` en
+`templates/index.json`). La imagen de respaldo se pinta al instante; el vídeo se pide al terminar de cargar la
+página (`preload="none"`) y aparece con un fundido cuando ya se reproduce. Con «reducir movimiento», con ahorro
+de datos o si el navegador no lo reproduce solo (iOS en bajo consumo), se queda la imagen.
+
+Sin ffmpeg, a mano (HandBrake): H.264, sin audio, «Web optimized»; escritorio 1920 px de ancho, bitrate medio
+≈ 7 MB × 8 / duración (máx. 6000 kbps); móvil recortado a 720 × 1280, ≈ 2,5 MB (máx. 2500 kbps). Mismos nombres.
+
+Si la casilla está desactivada se usa el vídeo subido en «Vídeo»: su versión de 720p en escritorio y la más
+ligera en móvil, con su miniatura (o «Imagen de respaldo») como imagen.
 
 ## «Diseña tu prenda»
 

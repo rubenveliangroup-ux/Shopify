@@ -67,7 +67,27 @@
 .br-hero { position: relative; min-height: 100svh; display: grid; align-items: end; color: #fff; overflow: hidden; background: #1b1a17; }
 .br-hero__media { position: absolute; inset: 0; }
 .br-hero__media img, .br-hero__media video { width: 100%; height: 100%; object-fit: cover; display: block; }
-.br-hero__media::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,var(--br-overlay, .55)), rgba(0,0,0,calc(var(--br-overlay, .55) * .25)) 60%, rgba(0,0,0,calc(var(--br-overlay, .55) * .35))); }
+.br-hero__poster, .br-hero__video { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* El vídeo aparece encima de la imagen de respaldo cuando ya se está reproduciendo */
+.br-hero__video { opacity: 0; transition: opacity .6s ease; }
+.br-hero__video.is-playing { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .br-hero__media .br-hero__video { display: none; } }
+/* Oscurecido solo donde hace falta: una franja arriba (cabecera transparente) y la zona del texto, abajo.
+   El centro del vídeo queda limpio. «Oscurecer la imagen» (--br-overlay) gradúa ambas. */
+.br-hero__media::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgba(0,0,0,calc(var(--br-overlay, .45) * .75)) 0, rgba(0,0,0,0) 150px),
+    linear-gradient(to top, rgba(0,0,0,calc(var(--br-overlay, .45) * 1.45)) 0%, rgba(0,0,0,calc(var(--br-overlay, .45) * 1.1)) 35%, rgba(0,0,0,0) 72%);
+}
+@media (min-width: 990px) {
+  .br-hero__media::after {
+    background:
+      linear-gradient(to bottom, rgba(0,0,0,calc(var(--br-overlay, .45) * .75)) 0, rgba(0,0,0,0) 150px),
+      radial-gradient(ellipse 85% 90% at 0% 100%, rgba(0,0,0,calc(var(--br-overlay, .45) * 1.45)) 0%, rgba(0,0,0,calc(var(--br-overlay, .45) * .95)) 45%, rgba(0,0,0,0) 78%);
+  }
+}
+.br-hero .br-h1, .br-hero .br-lead, .br-hero .br-eyebrow { text-shadow: 0 1px 2px rgba(0,0,0,.35), 0 1px 14px rgba(0,0,0,.35); }
 .br-hero__inner { position: relative; padding-top: 104px; padding-bottom: 36px; }
 @media (min-width: 990px) { .br-hero__inner { padding-bottom: 88px; } }
 .br-hero .br-eyebrow { color: rgba(255, 255, 255, 0.8); }

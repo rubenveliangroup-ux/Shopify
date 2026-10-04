@@ -13,7 +13,8 @@
     "glb:validar": "node shopify-theme/tools/validar-glb.mjs",
     "glb:optimizar": "node shopify-theme/tools/optimizar-glb.mjs",
     "test:bordado": "esbuild shopify-theme/tools/test-bordado.ts --bundle --platform=node --format=esm --alias:@=. --packages=external --log-level=error --outfile=node_modules/.cache/test-bordado.mjs && node node_modules/.cache/test-bordado.mjs",
-    "mockups": "esbuild shopify-theme/tools/mockups.ts --bundle --platform=node --format=esm --alias:@=. --packages=external --log-level=error --outfile=node_modules/.cache/mockups.mjs && node node_modules/.cache/mockups.mjs"
+    "mockups": "esbuild shopify-theme/tools/mockups.ts --bundle --platform=node --format=esm --alias:@=. --packages=external --log-level=error --outfile=node_modules/.cache/mockups.mjs && node node_modules/.cache/mockups.mjs",
+    "hero": "node shopify-theme/tools/optimizar-hero.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.114.0",
@@ -40,6 +41,7 @@
     "esbuild": "^0.24.2",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.35",
+    "ffmpeg-static": "^5.3.0",
     "meshoptimizer": "^1.3.0",
     "playwright": "^1.56.1",
     "postcss": "^8.4.39",
