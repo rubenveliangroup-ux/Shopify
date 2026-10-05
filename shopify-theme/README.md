@@ -76,17 +76,19 @@ npm run hero -- video.mp4 [imagen-de-respaldo.jpg]
 ```
 
 Crea en `assets/` (ffmpeg de `node_modules`, sin instalar nada más):
-- `br-hero-escritorio.mp4`: H.264, 1080p como máximo, unos 7 MB, sin audio;
-- `br-hero-movil.mp4`: 720 × 1280 vertical (centro del plano, lo que se ve en un móvil en vertical), unos 2,5 MB;
-- `br-hero-poster.jpg` y `br-hero-poster-movil.jpg`: la imagen que se pase o el primer fotograma.
+- `hero-escritorio.mp4`: H.264, 1080p como máximo, unos 7 MB, sin audio (pantallas ≥ 750 px y móvil en horizontal);
+- `hero-movil.mp4`: 720 × 1280 vertical (centro del plano), unos 2,5 MB (móvil en vertical);
+- `hero-poster.jpg`: la imagen que se pase o el primer fotograma.
 
-Súbelos al tema y marca «Usar el vídeo optimizado del tema» en la sección (`video_optimizado` en
-`templates/index.json`). La imagen de respaldo se pinta al instante; el vídeo se pide al terminar de cargar la
-página (`preload="none"`) y aparece con un fundido cuando ya se reproduce. Con «reducir movimiento», con ahorro
-de datos o si el navegador no lo reproduce solo (iOS en bajo consumo), se queda la imagen.
+También vale subir a mano esos tres archivos con esos nombres (H.264, sin audio y con el índice al principio,
+«Web optimized» en HandBrake). Súbelos al tema y marca «Usar el vídeo optimizado del tema» en la sección.
 
-Sin ffmpeg, a mano (HandBrake): H.264, sin audio, «Web optimized»; escritorio 1920 px de ancho, bitrate medio
-≈ 7 MB × 8 / duración (máx. 6000 kbps); móvil recortado a 720 × 1280, ≈ 2,5 MB (máx. 2500 kbps). Mismos nombres.
+El `<video>` lleva `autoplay muted loop playsinline` y sus dos `<source>` en el HTML, así que se reproduce aunque
+falle el JavaScript. `hero-poster.jpg` se pinta al instante y queda si el vídeo no se reproduce. Con «reducir
+movimiento» (ajuste del sistema: Windows → Efectos de animación; iPhone → Accesibilidad → Movimiento) o con
+ahorro de datos se ve solo la imagen. Para saber qué pasa en un navegador concreto, mira `data-estado` en el
+`<video>` (Inspeccionar): `reproduciendo`, `cargando`, `reducir-movimiento`, `ahorro-de-datos`, `bloqueado`
+(el navegador no deja reproducir solo, p. ej. iPhone en bajo consumo) o `error` (archivo no encontrado o ilegible).
 
 Si la casilla está desactivada se usa el vídeo subido en «Vídeo»: su versión de 720p en escritorio y la más
 ligera en móvil, con su miniatura (o «Imagen de respaldo») como imagen.

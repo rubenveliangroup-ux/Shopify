@@ -2,10 +2,9 @@
 //   npm run hero -- ruta/al/video.mp4 [ruta/a/la/imagen-poster.jpg]
 //
 // Escribe en shopify-theme/assets/ (se sirven con asset_url desde la sección br-hero):
-//   br-hero-escritorio.mp4   H.264 1080p, ~7 MB (dos pasadas para clavar el peso), sin audio
-//   br-hero-movil.mp4        H.264 720 × 1280 (vertical, el centro del plano), ~2,5 MB, sin audio
-//   br-hero-poster.jpg       imagen de respaldo de escritorio (la que se pase o el primer fotograma)
-//   br-hero-poster-movil.jpg imagen de respaldo vertical para móvil (mismo encuadre que el vídeo móvil)
+//   hero-escritorio.mp4   H.264 1080p, ~7 MB (dos pasadas para clavar el peso), sin audio
+//   hero-movil.mp4        H.264 720 × 1280 (vertical, el centro del plano), ~2,5 MB, sin audio
+//   hero-poster.jpg       imagen de respaldo (la que se pase o el primer fotograma)
 // En móvil en vertical el hero recorta el centro del vídeo de todas formas (object-fit: cover): la versión
 // vertical gasta los 2,5 MB solo en lo que se ve. Usa el ffmpeg de node_modules (ffmpeg-static).
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -47,9 +46,9 @@ function encode(name, filter, mb, maxKbps) {
 }
 
 // Escritorio: 1080p como máximo, mismo encuadre
-encode('br-hero-escritorio.mp4', "scale='min(1920,iw)':-2,setsar=1", OBJETIVO.escritorio, 6000);
+encode('hero-escritorio.mp4', "scale='min(1920,iw)':-2,setsar=1", OBJETIVO.escritorio, 6000);
 // Móvil: recorte central vertical 9:16 a 720 × 1280
-encode('br-hero-movil.mp4', "crop='trunc(min(iw,ih*9/16)/2)*2':ih,scale=720:1280,setsar=1", OBJETIVO.movil, 2500);
+encode('hero-movil.mp4', "crop='trunc(min(iw,ih*9/16)/2)*2':ih,scale=720:1280,setsar=1", OBJETIVO.movil, 2500);
 
 // Imágenes de respaldo: la que se pase o el primer fotograma del vídeo
 let base = posterIn;
@@ -59,13 +58,6 @@ if (!base) {
 }
 const img = sharp(base).rotate();
 const meta = await img.metadata();
-await img.clone().resize({ width: Math.min(1920, meta.width ?? 1920), withoutEnlargement: true }).jpeg({ quality: 78, mozjpeg: true }).toFile(path.join(out, 'br-hero-poster.jpg'));
-const cw = Math.min(meta.width, Math.round((meta.height * 9) / 16));
-await img
-  .clone()
-  .extract({ left: Math.round((meta.width - cw) / 2), top: 0, width: cw, height: meta.height })
-  .resize({ width: 720, height: 1280, fit: 'cover' })
-  .jpeg({ quality: 76, mozjpeg: true })
-  .toFile(path.join(out, 'br-hero-poster-movil.jpg'));
-for (const f of ['br-hero-poster.jpg', 'br-hero-poster-movil.jpg']) console.log(`${f}: ${Math.round(fs.statSync(path.join(out, f)).size / 1024)} KB`);
+await img.clone().resize({ width: Math.min(1920, meta.width ?? 1920), withoutEnlargement: true }).jpeg({ quality: 78, mozjpeg: true }).toFile(path.join(out, 'hero-poster.jpg'));
+console.log(`hero-poster.jpg: ${Math.round(fs.statSync(path.join(out, 'hero-poster.jpg')).size / 1024)} KB`);
 fs.rmSync(tmp, { recursive: true, force: true });

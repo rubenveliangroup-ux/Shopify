@@ -2,13 +2,13 @@
   BR · Hero de portada a pantalla completa: foto o vídeo, titular corto, frase y tres botones
   (el tercero, «Impulsa tu marca», con el estilo destacado de la marca).
 
-  Vídeo: primero se ve la imagen de respaldo (poster, sin diferir: es lo primero que se pinta) y el vídeo
-  se pide cuando la página ya ha cargado, sin bloquearla: versión ligera en móvil en vertical y la de
-  escritorio en el resto. Sin vídeo (solo la imagen) con «reducir movimiento» o «ahorro de datos», o si el
-  navegador no lo reproduce solo (iOS en bajo consumo).
-  - «Vídeo optimizado del tema»: assets/br-hero-escritorio.mp4, br-hero-movil.mp4 y sus imágenes
-    br-hero-poster.jpg / br-hero-poster-movil.jpg (npm run hero, ver shopify-theme/README.md).
-  - Si no, el vídeo subido a Shopify: su versión de 720p en escritorio y la de 480p en móvil.
+  Vídeo: <video autoplay muted loop playsinline> con sus fuentes en el HTML (no depende de JavaScript):
+  hero-escritorio.mp4 en pantallas grandes y en horizontal, hero-movil.mp4 en móvil en vertical, y
+  hero-poster.jpg como imagen de respaldo (se pinta al instante y queda si el vídeo no se reproduce).
+  Con «reducir movimiento» se ve solo la imagen. data-estado en el <video> dice qué pasa:
+  reproduciendo · cargando · reducir-movimiento · ahorro-de-datos · bloqueado (el navegador no deja
+  reproducir solo, p. ej. iPhone en bajo consumo) · error (no se pudo descargar o leer el archivo).
+  Si «Usar el vídeo optimizado del tema» está desactivado, se usa el vídeo subido en «Vídeo».
 {%- endcomment -%}
 {{ 'br-landing.css' | asset_url | stylesheet_tag }}
 {%- liquid
@@ -19,13 +19,11 @@
   assign v_escritorio = ''
   assign v_movil = ''
   assign poster = ''
-  assign poster_movil = ''
   if s.media == 'video'
     if s.video_optimizado
-      assign v_escritorio = 'br-hero-escritorio.mp4' | asset_url
-      assign v_movil = 'br-hero-movil.mp4' | asset_url
-      assign poster = 'br-hero-poster.jpg' | asset_url
-      assign poster_movil = 'br-hero-poster-movil.jpg' | asset_url
+      assign v_escritorio = 'hero-escritorio.mp4' | asset_url
+      assign v_movil = 'hero-movil.mp4' | asset_url
+      assign poster = 'hero-poster.jpg' | asset_url
     elsif s.video != blank
       assign h_escritorio = 0
       assign h_movil = 100000
@@ -45,58 +43,59 @@
         assign v_escritorio = v_movil
       endif
       assign poster = s.video.preview_image | image_url: width: 1920
-      assign poster_movil = s.video.preview_image | image_url: width: 720, height: 1280, crop: 'center'
     endif
     if s.poster != blank
       assign poster = s.poster | image_url: width: 1920
-      assign poster_movil = s.poster | image_url: width: 720, height: 1280, crop: 'center'
-    endif
-    if s.poster_movil != blank
-      assign poster_movil = s.poster_movil | image_url: width: 720, height: 1280, crop: 'center'
     endif
   endif
 -%}
 <section class="br br-hero" style="--br-overlay: {{ overlay }};" aria-label="{{ s.heading | strip_html | escape }}">
   <div class="br-hero__media">
     {%- if v_escritorio != blank -%}
-      <picture class="br-hero__poster">
-        {%- if poster_movil != blank -%}<source media="(max-width: 749px) and (orientation: portrait)" srcset="{{ poster_movil }}">{%- endif -%}
-        <img src="{{ poster }}" alt="" loading="eager" fetchpriority="high" decoding="async">
-      </picture>
+      <img class="br-hero__poster" src="{{ poster }}" alt="" width="1920" height="1080" loading="eager" fetchpriority="high" decoding="async">
       <video
         id="BrHeroVideo-{{ section.id }}"
         class="br-hero__video"
+        autoplay
         muted
         loop
         playsinline
-        autoplay
-        preload="none"
+        preload="metadata"
+        poster="{{ poster }}"
         disablepictureinpicture
         disableremoteplayback
         aria-hidden="true"
         tabindex="-1"
-        data-src="{{ v_escritorio }}"
-        data-src-movil="{{ v_movil }}"
-      ></video>
+        data-estado="cargando"
+      >
+        {%- comment -%} El navegador usa la primera que encaje; el que no entienda «media» usa la de escritorio. {%- endcomment -%}
+        <source src="{{ v_escritorio }}" type="video/mp4" media="(min-width: 750px), (orientation: landscape)">
+        <source src="{{ v_movil | default: v_escritorio }}" type="video/mp4">
+      </video>
       <script>
         (function () {
           var v = document.getElementById('BrHeroVideo-{{ section.id }}');
           if (!v) return;
           var reducir = window.matchMedia('(prefers-reduced-motion: reduce)');
           var c = navigator.connection;
-          // Movimiento reducido o ahorro de datos: solo la imagen
-          if (reducir.matches || (c && c.saveData)) return;
-          function arrancar() {
-            var movil = window.matchMedia('(max-width: 749px) and (orientation: portrait)').matches;
-            v.src = (movil && v.dataset.srcMovil) || v.dataset.src;
-            v.addEventListener('playing', function () { v.classList.add('is-playing'); }, { once: true });
-            var p = v.play();
-            if (p && p.catch) p.catch(function () {}); // no se reproduce solo: se queda la imagen
+          function parar(estado) {
+            v.removeAttribute('autoplay');
+            v.preload = 'none';
+            v.pause();
+            v.dataset.estado = estado;
           }
-          if (document.readyState === 'complete') arrancar();
-          else window.addEventListener('load', arrancar, { once: true });
+          // Movimiento reducido o ahorro de datos: solo la imagen de respaldo
+          if (reducir.matches) return parar('reducir-movimiento');
+          if (c && c.saveData) return parar('ahorro-de-datos');
+          v.muted = true; // como propiedad además de atributo: algunos navegadores solo miran esta para dejar reproducir solo
+          v.addEventListener('playing', function () { v.dataset.estado = 'reproduciendo'; });
+          v.addEventListener('error', function () { v.dataset.estado = 'error'; }, true);
+          var p = v.play();
+          if (p && p.catch) p.catch(function (e) {
+            if (v.dataset.estado !== 'reproduciendo') v.dataset.estado = e && e.name === 'NotAllowedError' ? 'bloqueado' : 'error';
+          });
           if (reducir.addEventListener) reducir.addEventListener('change', function (e) {
-            if (e.matches) { v.pause(); v.classList.remove('is-playing'); }
+            if (e.matches) parar('reducir-movimiento');
           });
         })();
       </script>
@@ -133,10 +132,9 @@
   "class": "section-br-hero",
   "settings": [
     { "type": "select", "id": "media", "label": "Fondo", "options": [{ "value": "video", "label": "Vídeo" }, { "value": "image", "label": "Imagen" }], "default": "video" },
-    { "type": "checkbox", "id": "video_optimizado", "label": "Usar el vídeo optimizado del tema", "info": "assets/br-hero-escritorio.mp4 (≈7 MB) y br-hero-movil.mp4 (≈2,5 MB), creados con «npm run hero». Si está desactivado, se usa el vídeo de abajo.", "default": false },
+    { "type": "checkbox", "id": "video_optimizado", "label": "Usar el vídeo optimizado del tema", "info": "assets/hero-escritorio.mp4, hero-movil.mp4 y hero-poster.jpg. Si está desactivado, se usa el vídeo de abajo.", "default": false },
     { "type": "video", "id": "video", "label": "Vídeo (sin sonido, en bucle)", "info": "Si no hay vídeo se usa la imagen." },
-    { "type": "image_picker", "id": "poster", "label": "Imagen de respaldo del vídeo (opcional)", "info": "Se ve al instante mientras carga y si el vídeo no se reproduce. Si no hay, el primer fotograma." },
-    { "type": "image_picker", "id": "poster_movil", "label": "Imagen de respaldo para móvil (opcional)", "info": "Vertical 9:16. Si no hay, se recorta el centro de la anterior." },
+    { "type": "image_picker", "id": "poster", "label": "Imagen de respaldo del vídeo (opcional)", "info": "Sustituye a hero-poster.jpg: se ve al instante mientras carga y si el vídeo no se reproduce." },
     { "type": "image_picker", "id": "image", "label": "Imagen (escritorio)", "info": "Horizontal, mínimo 2000 px de ancho." },
     { "type": "image_picker", "id": "image_mobile", "label": "Imagen para móvil (opcional)", "info": "Vertical 4:5 o 9:16. Si no hay, se recorta la de escritorio." },
     { "type": "range", "id": "overlay", "label": "Oscurecer la imagen", "min": 0, "max": 80, "step": 5, "unit": "%", "default": 45 },

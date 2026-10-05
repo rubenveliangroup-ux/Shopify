@@ -68,9 +68,6 @@
 .br-hero__media { position: absolute; inset: 0; }
 .br-hero__media img, .br-hero__media video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .br-hero__poster, .br-hero__video { position: absolute; inset: 0; width: 100%; height: 100%; }
-/* El vídeo aparece encima de la imagen de respaldo cuando ya se está reproduciendo */
-.br-hero__video { opacity: 0; transition: opacity .6s ease; }
-.br-hero__video.is-playing { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .br-hero__media .br-hero__video { display: none; } }
 /* Oscurecido solo donde hace falta: una franja arriba (cabecera transparente) y la zona del texto, abajo.
    El centro del vídeo queda limpio. «Oscurecer la imagen» (--br-overlay) gradúa ambas. */
