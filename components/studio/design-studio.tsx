@@ -105,7 +105,7 @@ const ZONE_LABELS = (id: string) => `del ${(zoneById(id)?.label ?? id).toLowerCa
 export function DesignStudio({
   garmentIds,
   altHref = '/personaliza',
-  priceNote = 'Sudaderas desde 49,90 €',
+  priceNote = 'Sudaderas desde 69,90 €',
   ctaLabel = 'Pedir mi boceto gratis',
   sizeOptions,
   sizeChart,

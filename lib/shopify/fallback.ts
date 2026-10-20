@@ -20,7 +20,7 @@ const seed: [id: string, variantIds: string[], handle: string, title: string, im
 ];
 
 export const fallbackProducts: Product[] = seed.map(([id, variantIds, handle, title, img, story]) => {
-  const price = { amount: '49.9', currencyCode: 'EUR' };
+  const price = { amount: '69.9', currencyCode: 'EUR' };
   const image = { url: CDN + img, altText: title, width: 1024, height: 1024 };
   return {
     id: `gid://shopify/Product/${id}`,

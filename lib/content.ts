@@ -17,7 +17,7 @@ export const benefits = [
 
 export const homeFaq: QA[] = [
   { q: '¿Qué puedo enviaros como idea?', a: 'Casi cualquier cosa: un dibujo a mano, una foto, una ilustración, un logo o una descripción. Nosotros lo convertimos en un diseño bordable y te lo enseñamos antes de producir.' },
-  { q: '¿Cuánto cuesta una prenda personalizada?', a: 'Depende de la prenda, el tamaño del bordado y el número de colores. Como referencia, una sudadera con bordado en pecho parte de 49,90 €. Te damos precio cerrado junto al boceto, sin compromiso.' },
+  { q: '¿Cuánto cuesta una prenda personalizada?', a: 'Depende de la prenda, el tamaño del bordado y el número de colores. Como referencia, una sudadera con bordado en pecho parte de 69,90 €. Te damos precio cerrado junto al boceto, sin compromiso.' },
   { q: '¿Hay pedido mínimo?', a: 'Para particulares no: bordamos desde 1 unidad. Para marcas y empresas trabajamos desde 25 unidades con precios por volumen.' },
   { q: '¿Cuánto tarda?', a: `Boceto en 48 h laborables. Una vez aprobado, producción en ${site.productionDays} días laborables más el envío (24–72 h en península).` },
   { q: '¿Puedo devolver una prenda personalizada?', a: 'Las prendas hechas a medida de tu diseño no admiten devolución por desistimiento (art. 103 LGDCU), pero si hay cualquier defecto de bordado o de prenda la repetimos sin coste. Las prendas de la colección tienen 30 días de devolución.' },

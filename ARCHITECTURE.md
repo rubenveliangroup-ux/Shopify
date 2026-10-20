@@ -83,7 +83,7 @@ El separador "pespunte" (`.stitch`) es el recurso gráfico de marca.
 
 ## 5. Checklist para producción (catálogo Shopify)
 
-Estado de la tienda (01/10/2026): 6 sudaderas a 49,90 €.
+Estado de la tienda (01/10/2026): 6 sudaderas a 49,90 € (69,90 € desde el 20/10/2026, también la personalizada).
 
 1. ✅ **Tallas**: opción *Talla* S, M, L, XL y XXL creada en las 6 sudaderas (30 variantes, 49,90 €).
 2. ✅ **Venta bajo pedido**: todas las variantes con "Seguir vendiendo sin stock" (inventario 0, producción bajo pedido).
